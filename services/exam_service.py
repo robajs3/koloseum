@@ -2,9 +2,7 @@ from models import db, Exam, Subject, RoomMember, User, Notification
 from datetime import datetime, timedelta
 from services.notification_service import NotificationService
 
-
 class ExamService:
-
     @staticmethod
     def create_exam(subject: Subject, title: str, description: str,
                     exam_date: datetime, location: str, exam_type: str,
@@ -20,8 +18,6 @@ class ExamService:
         )
         db.session.add(exam)
         db.session.commit()
-
-        # Notify all room members
         NotificationService.notify_new_exam(exam)
         return exam
 
@@ -44,7 +40,6 @@ class ExamService:
 
     @staticmethod
     def get_user_upcoming_exams(user: User, days: int = 30) -> list[Exam]:
-        """Get upcoming exams for all subjects in all user's rooms."""
         memberships = RoomMember.query.filter_by(user_id=user.id).all()
         room_ids = [m.room_id for m in memberships]
         subjects = Subject.query.filter(Subject.room_id.in_(room_ids)).all()
@@ -62,18 +57,15 @@ class ExamService:
 
     @staticmethod
     def get_calendar_events(user: User, year: int, month: int) -> list[dict]:
-        """Return events for the calendar view."""
         memberships = RoomMember.query.filter_by(user_id=user.id).all()
         room_ids = [m.room_id for m in memberships]
         subjects = Subject.query.filter(Subject.room_id.in_(room_ids)).all()
         subject_ids = [s.id for s in subjects]
-
         from datetime import date
         import calendar as cal_module
         _, last_day = cal_module.monthrange(year, month)
         start = datetime(year, month, 1)
         end = datetime(year, month, last_day, 23, 59, 59)
-
         exams = (
             Exam.query
             .filter(Exam.subject_id.in_(subject_ids))
@@ -81,7 +73,6 @@ class ExamService:
             .filter(Exam.exam_date <= end)
             .all()
         )
-
         events = []
         for e in exams:
             events.append({
@@ -91,6 +82,7 @@ class ExamService:
                 "time": e.exam_date.strftime("%H:%M"),
                 "type": e.exam_type,
                 "subject": e.subject.name,
+                "subject_id": e.subject.id,      # <-- dodane
                 "subject_color": e.subject.color,
                 "location": e.location,
             })

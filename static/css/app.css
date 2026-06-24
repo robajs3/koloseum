@@ -250,6 +250,7 @@ a:hover { color: var(--primary-hover); }
   flex: 1;
 }
 
+
 /* ===== CARDS ===== */
 .card {
   background: var(--bg-card);
@@ -789,3 +790,45 @@ tr:hover td { background: var(--primary-light); }
 .font-semibold { font-weight: 600; }
 .text-center { text-align: center; }
 .w-full { width: 100%; }
+
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .form-row   { grid-template-columns: 1fr; }
+  .file-name  { max-width: 160px; }
+  .file-actions { flex-wrap: wrap; }
+  .folders-grid { grid-template-columns: 1fr 1fr; }
+  .page-header { align-items: flex-start; flex-direction: column; }
+}
+
+.brand-sub {
+  font-size: 0.55em;
+  opacity: 0.7;
+  position: relative;
+  top: 8px;
+}
+
+.site-footer {
+  padding: .75rem 1.5rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
+}
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.footer-link {
+  font-size: .8rem;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.footer-link:hover { color: var(--primary); }
+
+@media (max-width: 768px) {
+  .site-footer {
+    position: static;
+    width: 100%;
+    margin-bottom: 70px;
+  }
+}

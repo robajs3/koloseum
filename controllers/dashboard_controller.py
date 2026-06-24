@@ -7,7 +7,6 @@ from datetime import datetime
 
 dashboard_bp = Blueprint("dashboard", __name__)
 
-
 @dashboard_bp.route("/")
 @login_required
 def index():
@@ -25,7 +24,6 @@ def index():
         current_year=now.year,
     )
 
-
 @dashboard_bp.route("/calendar/events")
 @login_required
 def calendar_events():
@@ -36,3 +34,7 @@ def calendar_events():
         return jsonify([])
     events = ExamService.get_calendar_events(current_user, year, month)
     return jsonify(events)
+
+@dashboard_bp.route("/privacy")
+def privacy():
+    return render_template("privacy.html")

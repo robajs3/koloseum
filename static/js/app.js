@@ -15,7 +15,6 @@ const ThemeManager = {
     const current = document.documentElement.getAttribute('data-theme') || 'light';
     const next = current === 'light' ? 'dark' : 'light';
     this.apply(next);
-    // Persist via server
     fetch(window.PREFIX + '/profile/theme', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -72,7 +71,7 @@ const Calendar = {
     title.textContent = `${months[this.month-1]} ${this.year}`;
 
     const firstDay = new Date(this.year, this.month - 1, 1).getDay();
-    const offset = (firstDay + 6) % 7; // Mon start
+    const offset = (firstDay + 6) % 7;
     const daysInMonth = new Date(this.year, this.month, 0).getDate();
     const today = new Date();
 
@@ -112,10 +111,29 @@ const Calendar = {
     const [y, m, d] = dateStr.split('-');
     let html = `<strong>📅 ${d}.${m}.${y}</strong><br><br>`;
     evs.forEach(ev => {
-      html += `<div style="margin-bottom:8px; padding:8px; background:var(--bg); border-radius:6px; border-left:3px solid ${ev.subject_color}">
-        <div style="font-weight:600;font-size:.85rem">${ev.title}</div>
-        <div style="font-size:.75rem;color:var(--text-muted)">${ev.subject} • ${ev.time}${ev.location ? ' • ' + ev.location : ''}</div>
-      </div>`;
+      const url = ev.subject_id ? `${window.PREFIX}/subjects/${ev.subject_id}` : null;
+      const inner = `
+        <div style="font-weight:600;font-size:.85rem;color:var(--text)">${ev.title}</div>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">
+          ${ev.subject} • ${ev.time}${ev.location ? ' • ' + ev.location : ''}
+        </div>`;
+      if (url) {
+        html += `
+          <a href="${url}"
+             style="display:block;margin-bottom:8px;padding:10px 12px;background:var(--bg);
+                    border-radius:6px;border-left:3px solid ${ev.subject_color};
+                    text-decoration:none;transition:opacity .15s"
+             onmouseover="this.style.opacity='.75'"
+             onmouseout="this.style.opacity='1'">
+            ${inner}
+          </a>`;
+      } else {
+        html += `
+          <div style="margin-bottom:8px;padding:10px 12px;background:var(--bg);
+                      border-radius:6px;border-left:3px solid ${ev.subject_color}">
+            ${inner}
+          </div>`;
+      }
     });
     showModal('Terminy', html);
   },
@@ -253,7 +271,6 @@ document.addEventListener('DOMContentLoaded', () => {
     Calendar.render();
   }
 
-  // Sidebar overlay close on mobile
   document.addEventListener('click', e => {
     const sidebar = document.querySelector('.sidebar');
     if (sidebar?.classList.contains('open') && !sidebar.contains(e.target) &&

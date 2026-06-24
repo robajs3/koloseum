@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% block title %}Polityka prywatności — Koloseum{% endblock %}
+
+{% block page_title %}Polityka prywatności{% endblock %}
+
+{% block content %}
+<div class="privacy-wrap">
+
+  <div class="privacy-header">
+    <i class="fas fa-shield-alt privacy-icon"></i>
+    <div>
+      <h1>Polityka prywatności</h1>
+      <p class="text-muted">Ostatnia aktualizacja: 22.06.2026</p>
+    </div>
+  </div>
+
+  <div class="privacy-card">
+    <p>Twoje dane są przetwarzane zgodnie z Rozporządzeniem Parlamentu Europejskiego i Rady (UE) 2016/679
+    (RODO). Administratorem danych osobowych jest operator serwisu Koloseum.</p>
+  </div>
+
+  <div class="privacy-card">
+    <h2><i class="fas fa-database"></i> Jakie dane zbieramy?</h2>
+    <ul class="privacy-list">
+      <li>
+        <i class="fas fa-check"></i>
+        <span><strong>Dane konta</strong> — nazwa użytkownika, adres e-mail, zahaszowane hasło</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span><strong>Logi techniczne</strong> — adres IP, znaczniki czasu, wykonywane akcje</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span><strong>Materiały</strong> — pliki przesłane przez użytkownika do pokojów i przedmiotów</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span><strong>Wiadomości czatu</strong> — treści wiadomości w pokojach oraz załączone pliki</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span><strong>Dane sesji</strong> — ciasteczka sesyjne niezbędne do działania aplikacji</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span><strong>Preferencje</strong> — ustawienia motywu oraz inne preferencje interfejsu</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="privacy-card">
+    <h2><i class="fas fa-bullseye"></i> Cel przetwarzania</h2>
+    <ul class="privacy-list">
+      <li>
+        <i class="fas fa-check"></i>
+        <span>Uwierzytelnianie i zarządzanie kontami użytkowników</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span>Udostępnianie materiałów edukacyjnych w ramach pokojów i przedmiotów</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span>Komunikacja w czasie rzeczywistym za pośrednictwem czatu grupowego</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span>Zapewnienie bezpieczeństwa i monitorowanie nadużyć (logi audytowe)</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span>Wysyłanie powiadomień systemowych związanych z aktywnością w serwisie</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span>Statystyki wykorzystania systemu (anonimowe)</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="privacy-card">
+    <h2><i class="fas fa-user-shield"></i> Twoje prawa</h2>
+    <div class="rights-grid">
+      <div class="right-item">
+        <span class="right-label">Dostęp</span>
+        <span class="right-desc">Prawo do uzyskania kopii swoich danych</span>
+      </div>
+      <div class="right-item">
+        <span class="right-label">Korekta</span>
+        <span class="right-desc">Prawo do poprawy nieprawidłowych danych</span>
+      </div>
+      <div class="right-item">
+        <span class="right-label">Usunięcie</span>
+        <span class="right-desc">Prawo do żądania usunięcia danych („prawo do bycia zapomnianym")</span>
+      </div>
+      <div class="right-item">
+        <span class="right-label">Ograniczenie</span>
+        <span class="right-desc">Prawo do ograniczenia przetwarzania danych</span>
+      </div>
+      <div class="right-item">
+        <span class="right-label">Przeniesienie</span>
+        <span class="right-desc">Prawo do otrzymania danych w ustrukturyzowanym formacie</span>
+      </div>
+      <div class="right-item">
+        <span class="right-label">Sprzeciw</span>
+        <span class="right-desc">Prawo do wniesienia sprzeciwu wobec przetwarzania</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="privacy-card">
+    <h2><i class="fas fa-lock"></i> Bezpieczeństwo danych</h2>
+    <ul class="privacy-list">
+      <li>
+        <i class="fas fa-check"></i>
+        <span>Hasła przechowywane wyłącznie w postaci zahaszowanej (bcrypt)</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span>Dostęp do danych innych użytkowników ograniczony przez system ról i uprawnień</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span>Komunikacja z serwerem chroniona protokołem HTTPS</span>
+      </li>
+      <li>
+        <i class="fas fa-check"></i>
+        <span>Pliki przesłane przez użytkownika dostępne tylko dla uprawnionych członków pokoju</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="privacy-card">
+    <h2><i class="fas fa-envelope"></i> Kontakt z administratorem</h2>
+    <p>W sprawach dotyczących ochrony danych osobowych prosimy o kontakt:</p>
+    <a href="mailto:robajsstrzelczyk@gmail.com" class="contact-link">
+      <i class="fas fa-envelope"></i>
+      robajsstrzelczyk@gmail.com
+    </a>
+  </div>
+
+  <div style="text-align:center;margin-top:2rem">
+    <a href="{{ url_for('dashboard.index') }}" class="btn btn-ghost">
+      <i class="fas fa-arrow-left"></i>
+      Powrót do pulpitu
+    </a>
+  </div>
+
+</div>
+
+<style>
+.privacy-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  animation: fadeIn .25s ease;
+}
+
+.privacy-header {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.privacy-icon {
+  font-size: 2rem;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.privacy-header h1 { font-size: 1.6rem; font-weight: 700; }
+.privacy-header .text-muted { font-size: .85rem; margin-top: .25rem; }
+
+.privacy-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.privacy-card > p {
+  font-size: .9rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.privacy-card h2 {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.privacy-card h2 i { color: var(--accent); font-size: .95rem; }
+
+.privacy-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+  padding: 0;
+  margin: 0;
+}
+.privacy-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  font-size: .9rem;
+  color: var(--text-muted);
+}
+.privacy-list li > i {
+  color: var(--success);
+  flex-shrink: 0;
+  margin-top: 3px;
+  font-size: .75rem;
+}
+.privacy-list li span strong { color: var(--text); }
+
+.rights-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .75rem;
+}
+.right-item {
+  background: var(--bg-3);
+  border-radius: var(--radius-sm);
+  padding: .75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+.right-label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.right-desc {
+  font-size: .82rem;
+  color: var(--text-muted);
+}
+
+.contact-link {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  color: var(--accent);
+  font-weight: 500;
+  font-size: .95rem;
+  text-decoration: none;
+}
+.contact-link:hover { text-decoration: underline; }
+
+@media (max-width: 540px) {
+  .rights-grid { grid-template-columns: 1fr; }
+  .privacy-header { flex-direction: column; align-items: flex-start; }
+}
+</style>
+{% endblock %}

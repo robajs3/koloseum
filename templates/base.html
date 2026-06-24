@@ -17,10 +17,11 @@
   <!-- SIDEBAR -->
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
-      <a href="{{ url_for('dashboard.index') }}">
-        <div class="logo-icon">🏛️</div>
-        <span>Koloseum</span>
-      </a>
+        <a href="{{ url_for('dashboard.index') }}">
+            <div class="logo-icon">🏛️</div>
+            <span>Koloseum</span>
+            <sub class="brand-sub">by Robajs</sub>
+        </a>
     </div>
 
     <nav class="sidebar-nav">
@@ -130,6 +131,12 @@
     <main class="page-content fade-in">
       {% block content %}{% endblock %}
     </main>
+  <footer class="site-footer">
+  <div class="footer-inner">
+    <span class="text-muted" style="font-size:.8rem">© 2026 Koloseum</span>
+    <a href="{{ url_for('dashboard.privacy') }}" class="footer-link">Polityka prywatności</a>
+  </div>
+</footer>
   </div>
 
   <!-- MOBILE NAV -->
@@ -157,6 +164,7 @@
       </a>
     </div>
   </nav>
+
 </div>
 
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
