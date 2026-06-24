@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Pulpit — Koloseum{% endblock %}
+{% block page_title %}Pulpit{% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start">
+
+  <!-- LEFT: Calendar + upcoming -->
+  <div>
+    <!-- Calendar -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h2><i class="fas fa-calendar-alt" style="color:var(--primary);margin-right:6px"></i>Kalendarz</h2>
+        <div class="cal-nav" style="margin:0">
+          <button class="btn btn-ghost btn-sm" onclick="Calendar.prev()"><i class="fas fa-chevron-left"></i></button>
+          <span class="cal-month-title" id="cal-title">Ładowanie…</span>
+          <button class="btn btn-ghost btn-sm" onclick="Calendar.next()"><i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:12px">
+        <div class="calendar-grid" style="margin-bottom:6px">
+          {% for day in ['Pn','Wt','Śr','Cz','Pt','Sb','Nd'] %}
+          <div class="cal-header-cell">{{ day }}</div>
+          {% endfor %}
+        </div>
+        <div class="calendar-grid" id="cal-grid">
+          <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted)">
+            <div class="spinner" style="margin:0 auto"></div>
+          </div>
+        </div>
+        <!-- Legend -->
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+          {% for type, label in [('kolokwium','Kolokwium'),('egzamin','Egzamin'),('kartkówka','Kartkówka'),('deadline','Deadline'),('inne','Inne')] %}
+          <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--text-muted)">
+            <span style="width:10px;height:10px;border-radius:2px;background:var(--c)" class="exam-{{ type }}"></span>
+            {{ label }}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fas fa-bolt" style="color:var(--warning);margin-right:6px"></i>Szybkie akcje</h3>
+      </div>
+      <div class="card-body" style="display:flex;flex-wrap:wrap;gap:10px">
+        <a href="{{ url_for('rooms.create_room') }}" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Nowy pokój
+        </a>
+        <a href="{{ url_for('rooms.join_room') }}" class="btn btn-secondary">
+          <i class="fas fa-sign-in-alt"></i> Dołącz do pokoju
+        </a>
+        <a href="{{ url_for('subjects.list_subjects') }}" class="btn btn-secondary">
+          <i class="fas fa-book"></i> Moje przedmioty
+        </a>
+        <a href="{{ filevault_url }}" target="_blank" class="btn btn-ghost">
+          <i class="fas fa-hdd"></i> FileVault
+          <i class="fas fa-external-link-alt" style="font-size:.65rem"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Upcoming exams + rooms -->
+  <div>
+    <!-- Upcoming exams -->
+    <div class="card mb-4">
+      <div class="card-header">
+        <h3><i class="fas fa-clock" style="color:var(--danger);margin-right:6px"></i>Nadchodzące</h3>
+        <a href="{{ url_for('subjects.list_subjects') }}" class="btn btn-ghost btn-sm">Wszystkie</a>
+      </div>
+      <div class="card-body" style="padding:0">
+        {% if upcoming %}
+        {% for exam in upcoming %}
+        {% set days_left = (exam.exam_date - now).days %}
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center">
+          <div style="width:48px;height:48px;border-radius:8px;display:flex;flex-direction:column;
+                      align-items:center;justify-content:center;font-size:.7rem;font-weight:700;
+                      background:{% if days_left <= 1 %}#fee2e2;color:#991b1b{% elif days_left <= 3 %}#fef3c7;color:#92400e{% else %}var(--primary-light);color:var(--primary){% endif %};flex-shrink:0">
+            <span style="font-size:1rem;line-height:1">{{ exam.exam_date.strftime('%d') }}</span>
+            <span>{{ exam.exam_date.strftime('%b') }}</span>
+          </div>
+          <div style="flex:1;overflow:hidden">
+            <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              {{ exam.title }}
+            </div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--text-muted);margin-top:2px">
+              <span style="width:8px;height:8px;border-radius:50%;background:{{ exam.subject.color }};flex-shrink:0"></span>
+              {{ exam.subject.name }} • {{ exam.exam_date.strftime('%H:%M') }}
+            </div>
+            {% if exam.location %}
+            <div style="font-size:.7rem;color:var(--text-muted);margin-top:1px">
+              <i class="fas fa-map-marker-alt"></i> {{ exam.location }}
+            </div>
+            {% endif %}
+          </div>
+          <div>
+            {% if days_left == 0 %}
+            <span class="badge badge-danger">Dziś!</span>
+            {% elif days_left == 1 %}
+            <span class="badge badge-warning">Jutro</span>
+            {% else %}
+            <span class="badge badge-gray">{{ days_left }}d</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">🎉</div>
+          <p>Brak nadchodzących terminów.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- My rooms -->
+    <div class="card">
+      <div class="card-header">
+        <h3><i class="fas fa-door-open" style="color:var(--secondary);margin-right:6px"></i>Moje pokoje</h3>
+        <a href="{{ url_for('rooms.list_rooms') }}" class="btn btn-ghost btn-sm">Wszystkie</a>
+      </div>
+      <div class="card-body" style="padding:0">
+        {% if rooms %}
+        {% for room in rooms[:5] %}
+        <a href="{{ url_for('rooms.room_detail', room_id=room.id) }}"
+           style="display:flex;align-items:center;gap:10px;padding:11px 16px;
+                  border-bottom:1px solid var(--border);text-decoration:none;
+                  transition:background var(--transition)"
+           onmouseover="this.style.background='var(--primary-light)'"
+           onmouseout="this.style.background=''">
+          <div style="width:34px;height:34px;border-radius:8px;background:var(--primary);
+                      display:flex;align-items:center;justify-content:center;
+                      color:#fff;font-weight:700;font-size:.85rem;flex-shrink:0">
+            {{ room.name[0].upper() }}
+          </div>
+          <div style="flex:1;overflow:hidden">
+            <div style="font-weight:600;font-size:.85rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+              {{ room.name }}
+            </div>
+            <div style="font-size:.72rem;color:var(--text-muted)">
+              {{ room.subjects|length }} przedmiotów • {{ room.members|length }} os.
+            </div>
+          </div>
+          <i class="fas fa-chevron-right" style="color:var(--text-light);font-size:.75rem"></i>
+        </a>
+        {% endfor %}
+        {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">🏛️</div>
+          <p>Nie jesteś w żadnym pokoju.<br>
+            <a href="{{ url_for('rooms.create_room') }}">Utwórz pokój</a> lub
+            <a href="{{ url_for('rooms.join_room') }}">dołącz</a> do istniejącego.
+          </p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="{{ current_user.theme if current_user.is_authenticated else 'light' }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Koloseum{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block extra_head %}{% endblock %}
+  <script>window.PREFIX = "{{ prefix }}";</script>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <a href="{{ url_for('dashboard.index') }}">
+        <div class="logo-icon">🏛️</div>
+        <span>Koloseum</span>
+      </a>
+    </div>
+
+    <nav class="sidebar-nav">
+      <span class="nav-section">Główne</span>
+      <a class="nav-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}"
+         href="{{ url_for('dashboard.index') }}">
+        <i class="fas fa-home nav-icon"></i> Pulpit
+      </a>
+      <a class="nav-item {% if request.endpoint and 'rooms' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('rooms.list_rooms') }}">
+        <i class="fas fa-door-open nav-icon"></i> Pokoje
+      </a>
+      <a class="nav-item {% if request.endpoint and 'subjects' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('subjects.list_subjects') }}">
+        <i class="fas fa-book nav-icon"></i> Przedmioty
+      </a>
+
+      <span class="nav-section">Narzędzia</span>
+      <a class="nav-item" href="{{ filevault_url }}" target="_blank" rel="noopener">
+        <i class="fas fa-hdd nav-icon"></i> Dysk
+        <i class="fas fa-external-link-alt" style="font-size:.65rem;margin-left:auto;opacity:.5"></i>
+      </a>
+      <a class="nav-item {% if request.endpoint and 'notifications' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('notifications.list_notifications') }}">
+        <i class="fas fa-bell nav-icon"></i> Powiadomienia
+        {% if unread_notifications > 0 %}
+        <span class="badge">{{ unread_notifications }}</span>
+        {% endif %}
+      </a>
+
+      {% if current_user.is_global_admin %}
+      <span class="nav-section">Admin</span>
+      <a class="nav-item {% if request.endpoint and 'admin' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('admin.index') }}">
+        <i class="fas fa-shield-alt nav-icon"></i> Panel admina
+      </a>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar">{{ current_user.username[0] }}</div>
+        <div style="flex:1;overflow:hidden">
+          <div style="color:#fff;font-weight:600;font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ current_user.username }}
+          </div>
+          <div style="font-size:.7rem;opacity:.6">{{ current_user.role }}</div>
+        </div>
+        <a href="{{ url_for('profile.profile') }}" style="color:var(--sidebar-text);font-size:.9rem;margin-left:4px">
+          <i class="fas fa-cog"></i>
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main-content">
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <button class="icon-btn hamburger" onclick="toggleSidebar()" style="display:none" id="hamburger-btn">
+        <i class="fas fa-bars"></i>
+      </button>
+      <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+      <div class="topbar-actions">
+        <!-- Theme toggle -->
+        <button class="icon-btn" onclick="ThemeManager.toggle()" title="Zmień motyw">
+          <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+        <!-- Notifications -->
+        <a class="icon-btn" href="{{ url_for('notifications.list_notifications') }}" title="Powiadomienia">
+          <i class="fas fa-bell"></i>
+          {% if unread_notifications > 0 %}
+          <span class="notif-badge notif-count">{{ unread_notifications }}</span>
+          {% else %}
+          <span class="notif-badge notif-count" style="display:none"></span>
+          {% endif %}
+        </a>
+        <!-- Profile -->
+        <a class="icon-btn" href="{{ url_for('profile.profile') }}" title="Profil">
+          <i class="fas fa-user"></i>
+        </a>
+        <!-- Logout -->
+        <a class="icon-btn" href="{{ url_for('auth.logout') }}" title="Wyloguj">
+          <i class="fas fa-sign-out-alt"></i>
+        </a>
+      </div>
+    </header>
+
+    <!-- FLASH MESSAGES -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div style="padding: 12px 24px 0">
+      {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }}" data-autodismiss>
+        {% if cat == 'success' %}<i class="fas fa-check-circle"></i>
+        {% elif cat == 'danger' %}<i class="fas fa-exclamation-circle"></i>
+        {% elif cat == 'warning' %}<i class="fas fa-exclamation-triangle"></i>
+        {% else %}<i class="fas fa-info-circle"></i>{% endif %}
+        {{ msg }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- PAGE CONTENT -->
+    <main class="page-content fade-in">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- MOBILE NAV -->
+  <nav class="mobile-nav">
+    <div class="mobile-nav-items">
+      <a class="mobile-nav-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}"
+         href="{{ url_for('dashboard.index') }}">
+        <i class="fas fa-home"></i><span>Pulpit</span>
+      </a>
+      <a class="mobile-nav-item {% if request.endpoint and 'rooms' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('rooms.list_rooms') }}">
+        <i class="fas fa-door-open"></i><span>Pokoje</span>
+      </a>
+      <a class="mobile-nav-item {% if request.endpoint and 'subjects' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('subjects.list_subjects') }}">
+        <i class="fas fa-book"></i><span>Przedmioty</span>
+      </a>
+      <a class="mobile-nav-item {% if request.endpoint and 'notifications' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('notifications.list_notifications') }}">
+        <i class="fas fa-bell"></i><span>Alerty</span>
+      </a>
+      <a class="mobile-nav-item {% if request.endpoint and 'profile' in request.endpoint %}active{% endif %}"
+         href="{{ url_for('profile.profile') }}">
+        <i class="fas fa-user"></i><span>Profil</span>
+      </a>
+    </div>
+  </nav>
+</div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+  // Hamburger visible on mobile
+  document.getElementById('hamburger-btn').style.display = 'flex';
+  // Theme icon update
+  function updateThemeIcon() {
+    const theme = document.documentElement.getAttribute('data-theme');
+    const icon = document.getElementById('theme-icon');
+    if (icon) icon.className = theme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+  }
+  updateThemeIcon();
+  const _origToggle = ThemeManager.toggle.bind(ThemeManager);
+  ThemeManager.toggle = function() { _origToggle(); updateThemeIcon(); };
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>
