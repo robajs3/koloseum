@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Panel admina — Koloseum{% endblock %}
+{% block page_title %}Panel administracyjny{% endblock %}
+
+{% block content %}
+<!-- Stats -->
+<div style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap">
+  <div class="card" style="flex:1;min-width:140px;padding:16px 20px">
+    <div style="font-size:1.8rem;font-weight:700;color:var(--primary)">{{ users|length }}</div>
+    <div style="font-size:.78rem;color:var(--text-muted)">Użytkowników</div>
+  </div>
+  <div class="card" style="flex:1;min-width:140px;padding:16px 20px">
+    <div style="font-size:1.8rem;font-weight:700;color:var(--secondary)">{{ rooms|length }}</div>
+    <div style="font-size:.78rem;color:var(--text-muted)">Pokojów</div>
+  </div>
+  <div class="card" style="flex:1;min-width:140px;padding:16px 20px">
+    <div style="font-size:1.8rem;font-weight:700;color:var(--success)">{{ rooms|selectattr('is_active')|list|length }}</div>
+    <div style="font-size:.78rem;color:var(--text-muted)">Aktywnych pokojów</div>
+  </div>
+</div>
+
+<!-- Users table -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3><i class="fas fa-users" style="color:var(--primary);margin-right:8px"></i>Użytkownicy</h3>
+  </div>
+  <div class="card-body" style="padding:0;overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border)">
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">ID</th>
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">Użytkownik</th>
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">Email</th>
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">Rola</th>
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">FileVault</th>
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">Akcja</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for user in users %}
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 16px;color:var(--text-muted)">{{ user.id }}</td>
+          <td style="padding:10px 16px;font-weight:500">{{ user.username }}</td>
+          <td style="padding:10px 16px;color:var(--text-muted)">{{ user.email }}</td>
+          <td style="padding:10px 16px">
+            <span style="font-size:.72rem;padding:2px 8px;border-radius:99px;
+                         background:{% if user.role=='global_admin' %}var(--primary-light){% else %}var(--border){% endif %};
+                         color:{% if user.role=='global_admin' %}var(--primary){% else %}var(--text-muted){% endif %}">
+              {{ user.role }}
+            </span>
+          </td>
+          <td style="padding:10px 16px">
+            {% if user.filevault_user_id %}<i class="fas fa-check-circle" style="color:#16a34a"></i>{% else %}—{% endif %}
+          </td>
+          <td style="padding:10px 16px">
+            {% if user.id != current_user.id %}
+            <form method="POST" action="{{ url_for('admin.change_user_role', user_id=user.id) }}"
+                  style="display:flex;gap:6px;align-items:center">
+              <select name="role" class="form-control" style="padding:3px 8px;font-size:.78rem;width:auto"
+                      onchange="this.form.submit()">
+                <option value="student" {% if user.role=='student' %}selected{% endif %}>Student</option>
+                <option value="global_admin" {% if user.role=='global_admin' %}selected{% endif %}>Global Admin</option>
+              </select>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Rooms table -->
+<div class="card">
+  <div class="card-header">
+    <h3><i class="fas fa-door-open" style="color:var(--secondary);margin-right:8px"></i>Pokoje</h3>
+  </div>
+  <div class="card-body" style="padding:0;overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border)">
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">Pokój</th>
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">Kod</th>
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">Członkowie</th>
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">Status</th>
+          <th style="padding:10px 16px;text-align:left;color:var(--text-muted);font-weight:500">Akcja</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for room in rooms %}
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 16px;font-weight:500">{{ room.name }}</td>
+          <td style="padding:10px 16px;font-family:monospace;font-size:.82rem">{{ room.invite_code }}</td>
+          <td style="padding:10px 16px">{{ room.members|length }}</td>
+          <td style="padding:10px 16px">
+            <span style="font-size:.72rem;padding:2px 8px;border-radius:99px;
+                         background:{% if room.is_active %}#dcfce7{% else %}#fee2e2{% endif %};
+                         color:{% if room.is_active %}#16a34a{% else %}#dc2626{% endif %}">
+              {% if room.is_active %}Aktywny{% else %}Dezaktywowany{% endif %}
+            </span>
+          </td>
+          <td style="padding:10px 16px">
+            {% if room.is_active %}
+            <form method="POST" action="{{ url_for('admin.deactivate_room', room_id=room.id) }}"
+                  onsubmit="return confirm('Dezaktywować pokój?')">
+              <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger)">
+                <i class="fas fa-ban"></i> Dezaktywuj
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Błąd {{ code }} — Koloseum</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card" style="text-align:center">
+    <div style="font-size:4rem;margin-bottom:12px">
+      {% if code == 404 %}🔍{% elif code == 403 %}🚫{% elif code == 413 %}📦{% else %}⚠️{% endif %}
+    </div>
+    <h1 style="font-size:2.5rem;color:var(--primary)">{{ code }}</h1>
+    <p style="color:var(--text-muted);margin:12px 0 24px">{{ message }}</p>
+    <a href="{{ url_for('dashboard.index') }}" class="btn btn-primary">
+      <i class="fas fa-home"></i> Wróć na pulpit
+    </a>
+  </div>
+</div>
+</body>
+</html>

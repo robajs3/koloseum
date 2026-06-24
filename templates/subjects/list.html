@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Przedmioty — Koloseum{% endblock %}
+{% block page_title %}Przedmioty{% endblock %}
+
+{% block content %}
+{% if subjects %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px">
+  {% for subj in subjects %}
+  <a href="{{ url_for('subjects.subject_detail', subject_id=subj.id) }}"
+     class="card" style="text-decoration:none;border-left:4px solid {{ subj.color }};
+                          transition:box-shadow var(--transition)"
+     onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.1)'"
+     onmouseout="this.style.boxShadow=''">
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <span style="width:12px;height:12px;border-radius:3px;background:{{ subj.color }};flex-shrink:0"></span>
+        <div style="font-weight:600;color:var(--text);overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
+          {{ subj.name }}
+        </div>
+      </div>
+      {% if subj.description %}
+      <p style="font-size:.78rem;color:var(--text-muted);margin:0 0 10px;
+                overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">
+        {{ subj.description }}
+      </p>
+      {% endif %}
+      <div style="font-size:.72rem;color:var(--text-muted);display:flex;gap:12px">
+        <span><i class="fas fa-door-open"></i> {{ subj.room.name }}</span>
+        <span><i class="fas fa-calendar-check"></i>
+          {% set upcoming = subj.exams|selectattr('exam_date', 'gt', now)|list %}
+          {{ upcoming|length }} nadchodzących
+        </span>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">📚</div>
+    <p>Nie masz jeszcze żadnych przedmiotów.<br>
+      Dołącz do pokoju lub poproś admina o dodanie przedmiotu.
+    </p>
+    <a href="{{ url_for('rooms.list_rooms') }}" class="btn btn-primary" style="margin-top:12px">
+      <i class="fas fa-door-open"></i> Przejdź do pokojów
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

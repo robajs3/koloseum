@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ room.name }} — Koloseum{% endblock %}
+{% block page_title %}{{ room.name }}{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+  <div>
+    <h2 style="margin:0">{{ room.name }}</h2>
+    {% if room.description %}
+    <p style="margin:4px 0 0;color:var(--text-muted);font-size:.85rem">{{ room.description }}</p>
+    {% endif %}
+  </div>
+  <div style="display:flex;gap:8px">
+    {% if member and member.role == 'admin' or current_user.is_global_admin %}
+    <a href="{{ url_for('rooms.create_subject', room_id=room.id) }}" class="btn btn-primary">
+      <i class="fas fa-plus"></i> Dodaj przedmiot
+    </a>
+    <a href="{{ url_for('rooms.room_settings', room_id=room.id) }}" class="btn btn-ghost">
+      <i class="fas fa-cog"></i> Ustawienia
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Stats bar -->
+<div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap">
+  <div class="card" style="flex:1;min-width:140px;padding:16px 20px">
+    <div style="font-size:1.6rem;font-weight:700;color:var(--primary)">{{ subjects|length }}</div>
+    <div style="font-size:.78rem;color:var(--text-muted)">Przedmiotów</div>
+  </div>
+  <div class="card" style="flex:1;min-width:140px;padding:16px 20px">
+    <div style="font-size:1.6rem;font-weight:700;color:var(--secondary)">{{ members|length }}</div>
+    <div style="font-size:.78rem;color:var(--text-muted)">Członków</div>
+  </div>
+  {% if member and member.role == 'admin' or current_user.is_global_admin %}
+  <div class="card" style="flex:1;min-width:200px;padding:16px 20px">
+    <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:4px">Kod zaproszenia</div>
+    <div style="font-family:monospace;font-size:1rem;font-weight:700;letter-spacing:2px;color:var(--primary)">
+      {{ room.invite_code }}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Subjects grid -->
+{% if subjects %}
+<h3 style="margin-bottom:12px"><i class="fas fa-book" style="color:var(--primary);margin-right:6px"></i>Przedmioty</h3>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px">
+  {% for subj in subjects %}
+  <a href="{{ url_for('subjects.subject_detail', subject_id=subj.id) }}"
+     class="card" style="text-decoration:none;border-left:4px solid {{ subj.color }};
+                          transition:box-shadow var(--transition)"
+     onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,.1)'"
+     onmouseout="this.style.boxShadow=''">
+    <div class="card-body">
+      <div style="font-weight:600;color:var(--text);margin-bottom:4px">{{ subj.name }}</div>
+      {% if subj.description %}
+      <div style="font-size:.78rem;color:var(--text-muted)">{{ subj.description }}</div>
+      {% endif %}
+      <div style="font-size:.72rem;color:var(--text-light);margin-top:8px">
+        {{ subj.exams|length }} terminów
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">📚</div>
+    <p>Brak przedmiotów w tym pokoju.
+      {% if member and member.role == 'admin' or current_user.is_global_admin %}
+      <a href="{{ url_for('rooms.create_subject', room_id=room.id) }}">Dodaj pierwszy</a>.
+      {% endif %}
+    </p>
+  </div>
+</div>
+{% endif %}
+
+<!-- Members -->
+<h3 style="margin:24px 0 12px"><i class="fas fa-users" style="color:var(--secondary);margin-right:6px"></i>Członkowie</h3>
+<div class="card">
+  <div class="card-body" style="padding:0">
+    {% for m in members %}
+    <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--border)">
+      <div style="width:34px;height:34px;border-radius:50%;background:var(--primary);
+                  display:flex;align-items:center;justify-content:center;
+                  color:#fff;font-weight:600;font-size:.85rem;flex-shrink:0">
+        {{ m.user.username[0].upper() }}
+      </div>
+      <div style="flex:1">
+        <span style="font-weight:500;font-size:.88rem">{{ m.user.username }}</span>
+      </div>
+      <span style="font-size:.72rem;padding:2px 8px;border-radius:99px;
+                   background:{% if m.role=='admin' %}var(--primary-light){% else %}var(--border){% endif %};
+                   color:{% if m.role=='admin' %}var(--primary){% else %}var(--text-muted){% endif %}">
+        {% if m.role == 'admin' %}Admin{% else %}Student{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

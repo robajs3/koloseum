@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Pokoje — Koloseum{% endblock %}
+{% block page_title %}Pokoje{% endblock %}
+
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+  <h2 style="margin:0">Moje pokoje</h2>
+  <div style="display:flex;gap:8px">
+    <a href="{{ url_for('rooms.join_room') }}" class="btn btn-secondary">
+      <i class="fas fa-sign-in-alt"></i> Dołącz
+    </a>
+    <a href="{{ url_for('rooms.create_room') }}" class="btn btn-primary">
+      <i class="fas fa-plus"></i> Nowy pokój
+    </a>
+  </div>
+</div>
+
+{% if rooms %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+  {% for room in rooms %}
+  <a href="{{ url_for('rooms.room_detail', room_id=room.id) }}"
+     class="card" style="text-decoration:none;transition:box-shadow var(--transition)"
+     onmouseover="this.style.boxShadow='0 4px 20px rgba(0,0,0,.12)'"
+     onmouseout="this.style.boxShadow=''">
+    <div class="card-body">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div style="width:44px;height:44px;border-radius:10px;background:var(--primary);
+                    display:flex;align-items:center;justify-content:center;
+                    color:#fff;font-weight:700;font-size:1.1rem;flex-shrink:0">
+          {{ room.name[0].upper() }}
+        </div>
+        <div style="flex:1;overflow:hidden">
+          <div style="font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ room.name }}
+          </div>
+          <div style="font-size:.75rem;color:var(--text-muted)">
+            {{ room.members|length }} członków
+          </div>
+        </div>
+      </div>
+      {% if room.description %}
+      <p style="font-size:.82rem;color:var(--text-muted);margin:0 0 12px;
+                overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">
+        {{ room.description }}
+      </p>
+      {% endif %}
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        {% for subj in room.subjects[:3] %}
+        <span style="font-size:.7rem;padding:2px 8px;border-radius:99px;
+                     background:{{ subj.color }}22;color:{{ subj.color }};font-weight:500">
+          {{ subj.name }}
+        </span>
+        {% endfor %}
+        {% if room.subjects|length > 3 %}
+        <span style="font-size:.7rem;color:var(--text-muted)">+{{ room.subjects|length - 3 }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-icon">🏛️</div>
+    <p>Nie jesteś jeszcze w żadnym pokoju.<br>
+      <a href="{{ url_for('rooms.create_room') }}">Utwórz nowy</a> lub
+      <a href="{{ url_for('rooms.join_room') }}">dołącz do istniejącego</a>.
+    </p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

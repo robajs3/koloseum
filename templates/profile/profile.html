@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Profil — Koloseum{% endblock %}
+{% block page_title %}Mój profil{% endblock %}
+
+{% block content %}
+<div style="max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
+
+  <!-- User info -->
+  <div class="card">
+    <div class="card-body" style="display:flex;align-items:center;gap:16px">
+      <div style="width:56px;height:56px;border-radius:50%;background:var(--primary);
+                  display:flex;align-items:center;justify-content:center;
+                  color:#fff;font-size:1.5rem;font-weight:700;flex-shrink:0">
+        {{ current_user.username[0].upper() }}
+      </div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:700">{{ current_user.username }}</div>
+        <div style="color:var(--text-muted);font-size:.82rem">{{ current_user.email }}</div>
+        <div style="margin-top:4px">
+          <span style="font-size:.72rem;padding:2px 8px;border-radius:99px;
+                       background:var(--primary-light);color:var(--primary)">
+            {% if current_user.role == 'global_admin' %}Global Admin
+            {% elif current_user.role == 'room_admin' %}Admin pokoju
+            {% else %}Student{% endif %}
+          </span>
+          {% if current_user.filevault_user_id %}
+          <span style="font-size:.72rem;padding:2px 8px;border-radius:99px;
+                       background:#dcfce7;color:#16a34a;margin-left:4px">
+            <i class="fas fa-hdd"></i> FileVault
+          </span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change password -->
+  <div class="card">
+    <div class="card-header"><h3><i class="fas fa-lock" style="color:var(--primary);margin-right:8px"></i>Zmień hasło</h3></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('profile.change_password') }}">
+        <div class="form-group">
+          <label class="form-label">Obecne hasło</label>
+          <input type="password" name="old_password" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nowe hasło</label>
+          <input type="password" name="new_password" class="form-control" required minlength="8">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Powtórz nowe hasło</label>
+          <input type="password" name="new_password2" class="form-control" required minlength="8">
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Zmień hasło</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- FileVault link -->
+  <div class="card">
+    <div class="card-header">
+      <h3><i class="fas fa-hdd" style="color:var(--secondary);margin-right:8px"></i>FileVault</h3>
+    </div>
+    <div class="card-body">
+      {% if current_user.filevault_user_id %}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <i class="fas fa-check-circle" style="color:#16a34a;font-size:1.1rem"></i>
+        <span style="font-size:.88rem">Konto FileVault jest powiązane.</span>
+      </div>
+      {% endif %}
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">
+        Wklej token API FileVault, aby połączyć konto.
+        Znajdziesz go w ustawieniach aplikacji FileVault.
+      </p>
+      <form method="POST" action="{{ url_for('profile.link_filevault') }}">
+        <div class="form-group">
+          <input type="text" name="fv_token" class="form-control"
+                 placeholder="Token API FileVault" autocomplete="off">
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button type="submit" class="btn btn-secondary">
+            <i class="fas fa-link"></i> Połącz konto
+          </button>
+          <a href="{{ filevault_url }}" target="_blank" class="btn btn-ghost">
+            <i class="fas fa-external-link-alt"></i> Otwórz FileVault
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Notifications -->
+  <div class="card">
+    <div class="card-header"><h3><i class="fas fa-bell" style="color:var(--warning);margin-right:8px"></i>Powiadomienia</h3></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('profile.update_notifications') }}">
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+          {% for name, label in [
+            ('notifications_enabled','Włącz powiadomienia'),
+            ('notify_new_exam','Nowy termin w przedmiocie'),
+            ('notify_exam_reminder','Przypomnienie przed terminem'),
+            ('notify_chat_message','Nowa wiadomość czatu')
+          ] %}
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.88rem">
+            <input type="checkbox" name="{{ name }}"
+                   {% if current_user|attr(name) %}checked{% endif %}
+                   style="width:16px;height:16px">
+            {{ label }}
+          </label>
+          {% endfor %}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Przypomnij na X dni przed terminem</label>
+          <input type="number" name="notify_days_before" class="form-control"
+                 value="{{ current_user.notify_days_before }}" min="1" max="30"
+                 style="width:100px">
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Zapisz</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Theme -->
+  <div class="card">
+    <div class="card-header"><h3><i class="fas fa-palette" style="color:var(--primary);margin-right:8px"></i>Motyw</h3></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('profile.set_theme') }}" style="display:flex;gap:10px">
+        <button type="submit" name="theme" value="light" class="btn {% if current_user.theme=='light' %}btn-primary{% else %}btn-ghost{% endif %}">
+          <i class="fas fa-sun"></i> Jasny
+        </button>
+        <button type="submit" name="theme" value="dark" class="btn {% if current_user.theme=='dark' %}btn-primary{% else %}btn-ghost{% endif %}">
+          <i class="fas fa-moon"></i> Ciemny
+        </button>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

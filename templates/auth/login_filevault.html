@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="pl" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Logowanie przez FileVault — Koloseum</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">🏛️</div>
+      <span>Koloseum</span>
+    </div>
+    <h1>Zaloguj przez FileVault</h1>
+    <p class="subtitle">
+      Użyj swojego tokenu API z FileVault, aby się zalogować.<br>
+      <a href="{{ fv_base }}" target="_blank" style="color:var(--primary)">
+        <i class="fas fa-external-link-alt"></i> Otwórz FileVault
+      </a>, zaloguj się i skopiuj swój token API.
+    </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}"><i class="fas fa-exclamation-circle"></i> {{ msg }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <form method="POST">
+      <div class="form-group">
+        <label class="form-label">Token API FileVault</label>
+        <input type="text" name="fv_token" class="form-control"
+               placeholder="Wklej tu swój token" required autofocus
+               style="font-family:monospace;font-size:.85rem">
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">
+          Token możesz znaleźć w FileVault → Profil → API Token
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-full" style="justify-content:center;padding:10px">
+        <i class="fas fa-hdd"></i> Zaloguj się
+      </button>
+    </form>
+
+    <p style="text-align:center;margin-top:20px;font-size:.85rem;color:var(--text-muted)">
+      <a href="{{ url_for('auth.login') }}">← Wróć do logowania</a>
+    </p>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Nowy przedmiot — Koloseum{% endblock %}
+{% block page_title %}Nowy przedmiot{% endblock %}
+
+{% block content %}
+<div style="max-width:520px;margin:0 auto">
+  <div class="card">
+    <div class="card-header">
+      <h2><i class="fas fa-book" style="color:var(--primary);margin-right:8px"></i>Dodaj przedmiot</h2>
+      <span style="font-size:.8rem;color:var(--text-muted)">Pokój: {{ room.name }}</span>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <div class="form-group">
+          <label class="form-label">Nazwa przedmiotu *</label>
+          <input type="text" name="name" class="form-control"
+                 placeholder="np. Analiza Matematyczna" required maxlength="128" autofocus>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Opis (opcjonalny)</label>
+          <textarea name="description" class="form-control" rows="2"
+                    placeholder="Krótki opis przedmiotu…"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kolor etykiety</label>
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="color" name="color" value="#4f46e5" id="colorPicker"
+                   style="width:44px;height:36px;border:none;cursor:pointer;border-radius:6px">
+            <span style="font-size:.82rem;color:var(--text-muted)">Kolor wyświetlany przy przedmiocie</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <a href="{{ url_for('rooms.room_detail', room_id=room.id) }}" class="btn btn-ghost">Anuluj</a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Dodaj przedmiot
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

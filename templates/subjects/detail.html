@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}{{ subject.name }} — Koloseum{% endblock %}
+{% block page_title %}{{ subject.name }}{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+  <div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:14px;height:14px;border-radius:3px;background:{{ subject.color }}"></span>
+      <h2 style="margin:0">{{ subject.name }}</h2>
+    </div>
+    <div style="font-size:.8rem;color:var(--text-muted);margin-top:4px">
+      <a href="{{ url_for('rooms.room_detail', room_id=subject.room_id) }}" style="color:var(--primary)">
+        {{ subject.room.name }}
+      </a>
+    </div>
+  </div>
+  {% if subject.filevault_folder_url %}
+  <a href="{{ subject.filevault_folder_url }}" target="_blank" class="btn btn-ghost">
+    <i class="fas fa-hdd"></i> Folder FileVault
+    <i class="fas fa-external-link-alt" style="font-size:.65rem"></i>
+  </a>
+  {% endif %}
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid var(--border);padding-bottom:0">
+  {% for tab_id, tab_label, tab_icon in [('exams','Terminy','calendar-alt'),('chat','Czat','comments'),('materials','Materiały','folder')] %}
+  <button class="tab-btn" id="tab-{{ tab_id }}" onclick="switchTab('{{ tab_id }}')"
+          style="padding:8px 16px;border:none;background:none;cursor:pointer;font-size:.88rem;
+                 font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;
+                 margin-bottom:-2px;transition:all .15s">
+    <i class="fas fa-{{ tab_icon }}" style="margin-right:5px"></i>{{ tab_label }}
+    {% if tab_id == 'exams' and upcoming_exams %}
+    <span style="background:var(--danger);color:#fff;font-size:.65rem;padding:1px 5px;
+                 border-radius:99px;margin-left:4px">{{ upcoming_exams|length }}</span>
+    {% endif %}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- EXAMS TAB -->
+<div id="pane-exams">
+  {% if admin %}
+  <div class="card mb-4">
+    <div class="card-header"><h4><i class="fas fa-plus" style="color:var(--primary);margin-right:6px"></i>Dodaj termin</h4></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('subjects.create_exam', subject_id=subject.id) }}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="grid-column:1/-1">
+            <label class="form-label">Tytuł *</label>
+            <input type="text" name="title" class="form-control" placeholder="np. Kolokwium 1" required maxlength="256">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data i godzina *</label>
+            <input type="datetime-local" name="exam_date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Typ</label>
+            <select name="exam_type" class="form-control">
+              {% for v, l in [('kolokwium','Kolokwium'),('egzamin','Egzamin'),('kartkówka','Kartkówka'),('deadline','Deadline'),('inne','Inne')] %}
+              <option value="{{ v }}">{{ l }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Miejsce</label>
+            <input type="text" name="location" class="form-control" placeholder="np. Sala 101" maxlength="256">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Opis</label>
+            <input type="text" name="description" class="form-control" placeholder="Opcjonalny opis" maxlength="512">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="fas fa-plus"></i> Dodaj termin
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if upcoming_exams %}
+  <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.5px">Nadchodzące</h4>
+  {% for exam in upcoming_exams %}
+  {% set days_left = (exam.exam_date - now).days %}
+  <div class="card mb-3" style="border-left:4px solid
+    {% if exam.exam_type=='kolokwium' %}#4f46e5{% elif exam.exam_type=='egzamin' %}#dc2626{% elif exam.exam_type=='kartkówka' %}#d97706{% elif exam.exam_type=='deadline' %}#7c3aed{% else %}#6b7280{% endif %}">
+    <div class="card-body" style="display:flex;align-items:center;gap:14px">
+      <div style="text-align:center;min-width:48px">
+        <div style="font-size:1.4rem;font-weight:700;line-height:1;color:var(--primary)">{{ exam.exam_date.strftime('%d') }}</div>
+        <div style="font-size:.7rem;color:var(--text-muted)">{{ exam.exam_date.strftime('%b %Y') }}</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:.92rem">{{ exam.title }}</div>
+        <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap">
+          <span><i class="fas fa-clock"></i> {{ exam.exam_date.strftime('%H:%M') }}</span>
+          {% if exam.location %}<span><i class="fas fa-map-marker-alt"></i> {{ exam.location }}</span>{% endif %}
+          <span class="badge badge-{% if exam.exam_type=='egzamin' %}danger{% elif exam.exam_type=='kolokwium' %}primary{% else %}gray{% endif %}">
+            {{ exam.exam_type }}
+          </span>
+        </div>
+        {% if exam.description %}<div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">{{ exam.description }}</div>{% endif %}
+      </div>
+      <div style="text-align:right">
+        {% if days_left == 0 %}<span class="badge badge-danger">Dziś!</span>
+        {% elif days_left == 1 %}<span class="badge badge-warning">Jutro</span>
+        {% else %}<span class="badge badge-gray">{{ days_left }}d</span>{% endif %}
+        {% if admin %}
+        <form method="POST" action="{{ url_for('subjects.delete_exam', subject_id=subject.id, exam_id=exam.id) }}"
+              style="margin-top:6px" onsubmit="return confirm('Usunąć ten termin?')">
+          <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger)">
+            <i class="fas fa-trash"></i>
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if past_exams %}
+  <h4 style="margin:20px 0 10px;color:var(--text-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.5px">Minione</h4>
+  {% for exam in past_exams %}
+  <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:8px;
+              background:var(--bg-secondary);margin-bottom:6px;opacity:.7">
+    <div style="font-size:.78rem;color:var(--text-muted);min-width:80px">
+      {{ exam.exam_date.strftime('%d.%m.%Y') }}
+    </div>
+    <div style="font-size:.85rem;font-weight:500;flex:1">{{ exam.title }}</div>
+    <span style="font-size:.7rem;color:var(--text-muted)">{{ exam.exam_type }}</span>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if not upcoming_exams and not past_exams %}
+  <div class="empty-state"><div class="empty-icon">📅</div><p>Brak terminów dla tego przedmiotu.</p></div>
+  {% endif %}
+</div>
+
+<!-- CHAT TAB -->
+<div id="pane-chat" style="display:none">
+  <div class="card" style="max-height:460px;overflow-y:auto;margin-bottom:12px" id="chat-box">
+    {% if messages %}
+    {% for msg in messages %}
+    {% if not msg.is_deleted %}
+    <div style="display:flex;gap:10px;padding:10px 16px;{% if msg.user_id == current_user.id %}flex-direction:row-reverse{% endif %}">
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);
+                  display:flex;align-items:center;justify-content:center;
+                  color:#fff;font-size:.78rem;font-weight:600;flex-shrink:0">
+        {{ msg.author.username[0].upper() }}
+      </div>
+      <div style="max-width:70%;background:{% if msg.user_id == current_user.id %}var(--primary){% else %}var(--bg-secondary){% endif %};
+                  color:{% if msg.user_id == current_user.id %}#fff{% else %}var(--text){% endif %};
+                  padding:8px 12px;border-radius:12px;font-size:.85rem">
+        {% if msg.user_id != current_user.id %}
+        <div style="font-size:.7rem;font-weight:600;opacity:.7;margin-bottom:2px">{{ msg.author.username }}</div>
+        {% endif %}
+        {% if msg.content %}{{ msg.content }}{% endif %}
+        {% for att in msg.attachments %}
+        <div style="margin-top:4px">
+          {% if att.filevault_link %}
+          <a href="{{ att.filevault_link }}" target="_blank" style="color:inherit;font-size:.78rem">
+            <i class="fas fa-link"></i> {{ att.original_filename }}
+          </a>
+          {% else %}
+          <a href="{{ url_for('subjects.download_attachment', attachment_id=att.id) }}"
+             style="color:inherit;font-size:.78rem">
+            <i class="fas fa-paperclip"></i> {{ att.original_filename }}
+            <span style="opacity:.6">({{ (att.file_size/1024)|round(1) }} KB)</span>
+          </a>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <div style="font-size:.65rem;opacity:.6;margin-top:3px;text-align:right">
+          {{ msg.created_at.strftime('%H:%M') }}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">💬</div><p>Brak wiadomości. Napisz pierwszą!</p></div>
+    {% endif %}
+  </div>
+  <form method="POST" action="{{ url_for('subjects.send_message', subject_id=subject.id) }}"
+        enctype="multipart/form-data">
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1">
+        <textarea name="content" class="form-control" rows="2"
+                  placeholder="Napisz wiadomość…" style="resize:none"></textarea>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer" title="Załącz plik (max 100 MB)">
+          <i class="fas fa-paperclip"></i>
+          <input type="file" name="file" style="display:none">
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- MATERIALS TAB -->
+<div id="pane-materials" style="display:none">
+  <div class="card mb-4">
+    <div class="card-header"><h4><i class="fas fa-upload" style="color:var(--primary);margin-right:6px"></i>Dodaj materiał</h4></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('subjects.add_material', subject_id=subject.id) }}"
+            enctype="multipart/form-data">
+        <div class="form-group">
+          <label class="form-label">Tytuł *</label>
+          <input type="text" name="title" class="form-control" placeholder="np. Notatki z wykładu 3" required maxlength="256">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Opis</label>
+          <input type="text" name="description" class="form-control" placeholder="Opcjonalny opis">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Plik (max 100 MB)</label>
+          <input type="file" name="file" class="form-control">
+          <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">
+            Pliki powyżej 100 MB — skorzystaj z FileVault.
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lub link FileVault</label>
+          <input type="text" name="filevault_link" class="form-control" placeholder="https://…/filevault/share/…">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-upload"></i> Dodaj</button>
+      </form>
+    </div>
+  </div>
+
+  {% if materials %}
+  <div class="card">
+    <div class="card-body" style="padding:0">
+      {% for mat in materials %}
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)">
+        <div style="width:36px;height:36px;border-radius:8px;background:var(--primary-light);
+                    display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fas fa-{% if mat.is_filevault_link %}link{% else %}file{% endif %}" style="color:var(--primary)"></i>
+        </div>
+        <div style="flex:1;overflow:hidden">
+          <div style="font-weight:500;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ mat.title }}</div>
+          {% if mat.description %}
+          <div style="font-size:.75rem;color:var(--text-muted)">{{ mat.description }}</div>
+          {% endif %}
+          <div style="font-size:.7rem;color:var(--text-light)">
+            {{ mat.uploader.username }} • {{ mat.created_at.strftime('%d.%m.%Y') }}
+            {% if not mat.is_filevault_link and mat.file_size %}
+            • {{ (mat.file_size/1024/1024)|round(1) }} MB
+            {% endif %}
+          </div>
+        </div>
+        {% if mat.is_filevault_link %}
+        <a href="{{ mat.filevault_link }}" target="_blank" class="btn btn-ghost btn-sm">
+          <i class="fas fa-external-link-alt"></i>
+        </a>
+        {% else %}
+        <a href="{{ url_for('subjects.download_material', subject_id=subject.id, material_id=mat.id) }}"
+           class="btn btn-ghost btn-sm">
+          <i class="fas fa-download"></i>
+        </a>
+        {% endif %}
+        {% if mat.uploaded_by == current_user.id or admin %}
+        <form method="POST" action="{{ url_for('subjects.delete_material', subject_id=subject.id, material_id=mat.id) }}"
+              onsubmit="return confirm('Usunąć materiał?')">
+          <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger)">
+            <i class="fas fa-trash"></i>
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state"><div class="empty-icon">📂</div><p>Brak materiałów.</p></div>
+  {% endif %}
+
+  {% if admin %}
+  <div class="card" style="margin-top:16px">
+    <div class="card-header"><h4><i class="fas fa-hdd" style="color:var(--secondary);margin-right:6px"></i>Folder FileVault</h4></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('subjects.set_filevault_folder', subject_id=subject.id) }}">
+        <div class="form-group">
+          <input type="text" name="filevault_folder_url" class="form-control"
+                 value="{{ subject.filevault_folder_url or '' }}"
+                 placeholder="https://…/filevault/shared-folder/…">
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-link"></i> Zapisz folder</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const tabs = ['exams','chat','materials'];
+function switchTab(active) {
+  tabs.forEach(t => {
+    document.getElementById('pane-'+t).style.display = t===active ? '' : 'none';
+    const btn = document.getElementById('tab-'+t);
+    btn.style.color = t===active ? 'var(--primary)' : 'var(--text-muted)';
+    btn.style.borderBottomColor = t===active ? 'var(--primary)' : 'transparent';
+    btn.style.fontWeight = t===active ? '600' : '500';
+  });
+}
+// auto-switch from hash
+const hash = location.hash.replace('#','');
+if (tabs.includes(hash)) switchTab(hash);
+else switchTab('exams');
+
+// scroll chat to bottom
+const chatBox = document.getElementById('chat-box');
+if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+</script>
+{% endblock %}
