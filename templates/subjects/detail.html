@@ -159,21 +159,75 @@
         <div style="font-size:.7rem;font-weight:600;opacity:.7;margin-bottom:2px">{{ msg.author.username }}</div>
         {% endif %}
         {% if msg.content %}{{ msg.content }}{% endif %}
+
         {% for att in msg.attachments %}
-        <div style="margin-top:4px">
-          {% if att.filevault_link %}
-          <a href="{{ att.filevault_link }}" target="_blank" style="color:inherit;font-size:.78rem">
-            <i class="fas fa-link"></i> {{ att.original_filename }}
+        {# Określ typ załącznika #}
+        {% set ext = att.original_filename.rsplit('.', 1)[-1].lower() if (att.original_filename and '.' in att.original_filename) else '' %}
+        {% set is_image = ext in ['png','jpg','jpeg','gif','webp','svg'] %}
+        {% set is_pdf   = ext == 'pdf' %}
+        {% set is_text  = ext in ['txt','md','csv','py','js','html','css','json','xml'] %}
+        {% set is_video = ext in ['mp4','webm','ogg'] %}
+        {% set is_audio = ext in ['mp3','wav','oga'] %}
+        {% set can_preview = (not att.filevault_link) and (is_image or is_pdf or is_text or is_video or is_audio) %}
+
+        {% if att.filevault_link %}
+          {% set file_icon = 'link' %}{% set icon_color = 'var(--secondary)' %}
+        {% elif is_pdf %}
+          {% set file_icon = 'file-pdf' %}{% set icon_color = '#dc2626' %}
+        {% elif is_image %}
+          {% set file_icon = 'file-image' %}{% set icon_color = '#0284c7' %}
+        {% elif is_video %}
+          {% set file_icon = 'file-video' %}{% set icon_color = '#7c3aed' %}
+        {% elif is_audio %}
+          {% set file_icon = 'file-audio' %}{% set icon_color = '#d97706' %}
+        {% elif is_text %}
+          {% set file_icon = 'file-code' %}{% set icon_color = '#64748b' %}
+        {% else %}
+          {% set file_icon = 'file' %}{% set icon_color = 'var(--primary)' %}
+        {% endif %}
+
+        {% set att_url = url_for('subjects.download_attachment', attachment_id=att.id) %}
+        {% set preview_type = 'image' if is_image else 'pdf' if is_pdf else 'video' if is_video else 'audio' if is_audio else 'text' %}
+
+        <div style="margin-top:6px">
+          {% if can_preview %}
+          <div style="display:flex;align-items:center;gap:8px;cursor:pointer"
+               onclick="openPreview('{{ att_url }}', '{{ att.original_filename|e }}', '{{ preview_type }}')">
+            <div class="mat-thumb mat-thumb--clickable"
+                 style="--thumb-color:{{ icon_color }};width:36px;height:36px">
+              {% if is_image %}
+              <img src="{{ att_url }}" alt="{{ att.original_filename|e }}"
+                   loading="lazy"
+                   onerror="this.parentElement.classList.add('mat-thumb--fallback');this.remove()">
+              {% else %}
+              <i class="fas fa-{{ file_icon }}"></i>
+              {% endif %}
+              <div class="mat-thumb-overlay"><i class="fas fa-eye"></i></div>
+            </div>
+            <span style="font-size:.78rem;text-decoration:underline;text-underline-offset:2px;opacity:.85">
+              {{ att.original_filename }}
+            </span>
+          </div>
+          {% elif att.filevault_link %}
+          <a href="{{ att.filevault_link }}" target="_blank" style="color:inherit;font-size:.78rem;display:flex;align-items:center;gap:8px">
+            <div class="mat-thumb" style="--thumb-color:var(--secondary);width:36px;height:36px;cursor:default">
+              <i class="fas fa-link"></i>
+            </div>
+            <span style="text-decoration:underline;text-underline-offset:2px;opacity:.85">{{ att.original_filename }}</span>
           </a>
           {% else %}
-          <a href="{{ url_for('subjects.download_attachment', attachment_id=att.id) }}"
-             style="color:inherit;font-size:.78rem">
-            <i class="fas fa-paperclip"></i> {{ att.original_filename }}
-            <span style="opacity:.6">({{ (att.file_size/1024)|round(1) }} KB)</span>
+          <a href="{{ att_url }}" style="color:inherit;font-size:.78rem;display:flex;align-items:center;gap:8px">
+            <div class="mat-thumb" style="--thumb-color:{{ icon_color }};width:36px;height:36px;cursor:default">
+              <i class="fas fa-{{ file_icon }}"></i>
+            </div>
+            <span style="opacity:.85">{{ att.original_filename }}
+              <span style="opacity:.6">({{ (att.file_size/1024)|round(1) }} KB)</span>
+            </span>
           </a>
           {% endif %}
         </div>
         {% endfor %}
+
         <div style="font-size:.65rem;opacity:.6;margin-top:3px;text-align:right">
           {{ msg.created_at.strftime('%H:%M') }}
         </div>
@@ -240,41 +294,120 @@
   <div class="card">
     <div class="card-body" style="padding:0">
       {% for mat in materials %}
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border)">
-        <div style="width:36px;height:36px;border-radius:8px;background:var(--primary-light);
-                    display:flex;align-items:center;justify-content:center;flex-shrink:0">
-          <i class="fas fa-{% if mat.is_filevault_link %}link{% else %}file{% endif %}" style="color:var(--primary)"></i>
-        </div>
-        <div style="flex:1;overflow:hidden">
-          <div style="font-weight:500;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ mat.title }}</div>
+      {% set ext = mat.original_filename.rsplit('.', 1)[-1].lower() if (mat.original_filename and '.' in mat.original_filename) else '' %}
+      {% set is_image = ext in ['png','jpg','jpeg','gif','webp','svg'] %}
+      {% set is_pdf   = ext == 'pdf' %}
+      {% set is_text  = ext in ['txt','md','csv','py','js','html','css','json','xml'] %}
+      {% set is_video = ext in ['mp4','webm','ogg'] %}
+      {% set is_audio = ext in ['mp3','wav','oga'] %}
+      {% set is_docx  = ext in ['docx','doc'] %}
+      {% set is_xlsx  = ext in ['xlsx','xls'] %}
+      {% set can_preview = (not mat.is_filevault_link) and (is_image or is_pdf or is_text or is_video or is_audio) %}
+
+      {% if mat.is_filevault_link %}
+        {% set file_icon = 'link' %}{% set icon_color = 'var(--secondary)' %}
+      {% elif is_pdf %}
+        {% set file_icon = 'file-pdf' %}{% set icon_color = '#dc2626' %}
+      {% elif is_image %}
+        {% set file_icon = 'file-image' %}{% set icon_color = '#0284c7' %}
+      {% elif is_docx %}
+        {% set file_icon = 'file-word' %}{% set icon_color = '#2563eb' %}
+      {% elif is_xlsx %}
+        {% set file_icon = 'file-excel' %}{% set icon_color = '#059669' %}
+      {% elif is_video %}
+        {% set file_icon = 'file-video' %}{% set icon_color = '#7c3aed' %}
+      {% elif is_audio %}
+        {% set file_icon = 'file-audio' %}{% set icon_color = '#d97706' %}
+      {% elif is_text %}
+        {% set file_icon = 'file-code' %}{% set icon_color = '#64748b' %}
+      {% else %}
+        {% set file_icon = 'file' %}{% set icon_color = 'var(--primary)' %}
+      {% endif %}
+
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;
+                  border-bottom:1px solid var(--border);transition:background var(--transition)"
+           class="mat-row">
+        <!-- Thumbnail -->
+        {% if can_preview %}
+          {% set preview_type = 'image' if is_image else 'pdf' if is_pdf else 'video' if is_video else 'audio' if is_audio else 'text' %}
+          {% set preview_url = url_for('subjects.preview_material', subject_id=subject.id, material_id=mat.id) %}
+          <div class="mat-thumb mat-thumb--clickable"
+               onclick="openPreview('{{ preview_url }}', '{{ mat.title|e }}', '{{ preview_type }}')"
+               title="Kliknij, aby otworzyć podgląd"
+               style="--thumb-color:{{ icon_color }}">
+            {% if is_image %}
+            <img src="{{ preview_url }}" alt="{{ mat.title|e }}"
+                 loading="lazy"
+                 onerror="this.parentElement.classList.add('mat-thumb--fallback');this.remove()">
+            {% else %}
+            <i class="fas fa-{{ file_icon }}"></i>
+            {% endif %}
+            <div class="mat-thumb-overlay"><i class="fas fa-eye"></i></div>
+          </div>
+        {% else %}
+          <div class="mat-thumb" style="--thumb-color:{{ icon_color }};cursor:default">
+            <i class="fas fa-{{ file_icon }}"></i>
+          </div>
+        {% endif %}
+
+        <!-- Info -->
+        <div style="flex:1;overflow:hidden;min-width:0">
+          <div style="font-weight:500;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ mat.title }}
+          </div>
           {% if mat.description %}
-          <div style="font-size:.75rem;color:var(--text-muted)">{{ mat.description }}</div>
+          <div style="font-size:.75rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ mat.description }}
+          </div>
           {% endif %}
-          <div style="font-size:.7rem;color:var(--text-light)">
-            {{ mat.uploader.username }} • {{ mat.created_at.strftime('%d.%m.%Y') }}
+          <div style="font-size:.7rem;color:var(--text-light);display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">
+            <span>{{ mat.uploader.username }}</span>
+            <span>{{ mat.created_at.strftime('%d.%m.%Y') }}</span>
             {% if not mat.is_filevault_link and mat.file_size %}
-            • {{ (mat.file_size/1024/1024)|round(1) }} MB
+            <span>{{ (mat.file_size/1024/1024)|round(1) }} MB</span>
+            {% endif %}
+            {% if not mat.is_filevault_link %}
+            <span style="color:var(--text-light);text-transform:uppercase;font-size:.65rem;
+                         background:var(--bg);border:1px solid var(--border);
+                         border-radius:3px;padding:0 4px">{{ ext }}</span>
             {% endif %}
           </div>
         </div>
-        {% if mat.is_filevault_link %}
-        <a href="{{ mat.filevault_link }}" target="_blank" class="btn btn-ghost btn-sm">
-          <i class="fas fa-external-link-alt"></i>
-        </a>
-        {% else %}
-        <a href="{{ url_for('subjects.download_material', subject_id=subject.id, material_id=mat.id) }}"
-           class="btn btn-ghost btn-sm">
-          <i class="fas fa-download"></i>
-        </a>
-        {% endif %}
-        {% if mat.uploaded_by == current_user.id or admin %}
-        <form method="POST" action="{{ url_for('subjects.delete_material', subject_id=subject.id, material_id=mat.id) }}"
-              onsubmit="return confirm('Usunąć materiał?')">
-          <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger)">
-            <i class="fas fa-trash"></i>
+
+        <!-- Akcje -->
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          {% if can_preview %}
+          <button class="btn btn-ghost btn-sm"
+                  onclick="openPreview('{{ url_for('subjects.preview_material', subject_id=subject.id, material_id=mat.id) }}', '{{ mat.title|e }}', '{{ 'image' if is_image else 'pdf' if is_pdf else 'video' if is_video else 'audio' if is_audio else 'text' }}')"
+                  title="Podgląd">
+            <i class="fas fa-eye"></i>
           </button>
-        </form>
-        {% endif %}
+          {% elif is_docx or is_xlsx %}
+          <span class="btn btn-ghost btn-sm" style="cursor:default;opacity:.4" title="Podgląd niedostępny dla tego formatu">
+            <i class="fas fa-eye-slash"></i>
+          </span>
+          {% endif %}
+
+          {% if mat.is_filevault_link %}
+          <a href="{{ mat.filevault_link }}" target="_blank" class="btn btn-ghost btn-sm" title="Otwórz w FileVault">
+            <i class="fas fa-external-link-alt"></i>
+          </a>
+          {% else %}
+          <a href="{{ url_for('subjects.download_material', subject_id=subject.id, material_id=mat.id) }}"
+             class="btn btn-ghost btn-sm" title="Pobierz">
+            <i class="fas fa-download"></i>
+          </a>
+          {% endif %}
+
+          {% if mat.uploaded_by == current_user.id or admin %}
+          <form method="POST" action="{{ url_for('subjects.delete_material', subject_id=subject.id, material_id=mat.id) }}"
+                onsubmit="return confirm('Usunąć materiał?')" style="margin:0">
+            <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger)" title="Usuń">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
       </div>
       {% endfor %}
     </div>
@@ -299,6 +432,51 @@
   </div>
   {% endif %}
 </div>
+
+<!-- ===== MODAL PODGLĄDU ===== -->
+<div id="preview-modal" style="display:none;position:fixed;inset:0;z-index:1000;
+     background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+     align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+              width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;
+              box-shadow:var(--shadow-md);overflow:hidden">
+
+    <!-- Nagłówek modala -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0">
+        <i class="fas fa-eye" style="color:var(--primary);flex-shrink:0"></i>
+        <span id="preview-title" style="font-weight:600;font-size:.9rem;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:12px">
+        <a id="preview-download-btn" href="#" class="btn btn-ghost btn-sm" title="Pobierz">
+          <i class="fas fa-download"></i>
+        </a>
+        <button onclick="closePreview()" class="btn btn-ghost btn-sm" title="Zamknij">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Zawartość podglądu -->
+    <div id="preview-body" style="flex:1;overflow:auto;min-height:0;display:flex;
+                                   align-items:center;justify-content:center;
+                                   background:var(--bg);padding:0">
+      <!-- wypełniane przez JS -->
+    </div>
+
+    <!-- Pasek ładowania -->
+    <div id="preview-loader" style="display:none;position:absolute;inset:0;
+         background:var(--bg-card);align-items:center;justify-content:center;z-index:10;
+         border-radius:var(--radius)">
+      <div style="text-align:center;color:var(--text-muted)">
+        <div class="spinner" style="margin:0 auto 10px"></div>
+        <div style="font-size:.82rem">Ładowanie podglądu…</div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -313,13 +491,178 @@ function switchTab(active) {
     btn.style.fontWeight = t===active ? '600' : '500';
   });
 }
-// auto-switch from hash
 const hash = location.hash.replace('#','');
 if (tabs.includes(hash)) switchTab(hash);
 else switchTab('exams');
 
-// scroll chat to bottom
 const chatBox = document.getElementById('chat-box');
 if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+/* ===== PODGLĄD PLIKÓW ===== */
+let currentPreviewUrl = null;
+
+function openPreview(url, title, type) {
+  currentPreviewUrl = url;
+  const modal   = document.getElementById('preview-modal');
+  const body    = document.getElementById('preview-body');
+  const titleEl = document.getElementById('preview-title');
+  const dlBtn   = document.getElementById('preview-download-btn');
+
+  titleEl.textContent = title;
+  dlBtn.href = url;
+
+  body.innerHTML = '';
+
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  if (type === 'image') {
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;display:block;';
+    img.onerror = () => showPreviewError('Nie można załadować obrazu.');
+    body.style.padding = '16px';
+    body.appendChild(img);
+
+  } else if (type === 'pdf') {
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.cssText = 'width:100%;height:100%;border:none;min-height:70vh;';
+    iframe.onerror = () => showPreviewError('Nie można załadować PDF.');
+    body.style.padding = '0';
+    body.style.display = 'block';
+    body.appendChild(iframe);
+
+  } else if (type === 'video') {
+    const video = document.createElement('video');
+    video.src = url;
+    video.controls = true;
+    video.style.cssText = 'max-width:100%;max-height:80vh;border-radius:4px;';
+    video.onerror = () => showPreviewError('Nie można odtworzyć wideo.');
+    body.style.padding = '16px';
+    body.appendChild(video);
+
+  } else if (type === 'audio') {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'padding:32px;text-align:center;width:100%';
+    const icon = document.createElement('div');
+    icon.innerHTML = '<i class="fas fa-music" style="font-size:3rem;color:var(--primary);margin-bottom:16px"></i>';
+    const audio = document.createElement('audio');
+    audio.src = url;
+    audio.controls = true;
+    audio.style.cssText = 'width:100%;max-width:480px;margin-top:8px;';
+    audio.onerror = () => showPreviewError('Nie można odtworzyć audio.');
+    wrap.appendChild(icon);
+    wrap.appendChild(audio);
+    body.appendChild(wrap);
+
+  } else if (type === 'text') {
+    body.style.padding = '0';
+    body.style.display = 'block';
+    body.style.alignItems = 'unset';
+    body.style.justifyContent = 'unset';
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(text => {
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'margin:0;padding:20px;font-size:.82rem;line-height:1.6;'
+                          + 'font-family:monospace;white-space:pre-wrap;word-break:break-all;'
+                          + 'color:var(--text);background:var(--bg);min-height:100%;width:100%;'
+                          + 'box-sizing:border-box;';
+        pre.textContent = text;
+        body.appendChild(pre);
+      })
+      .catch(() => showPreviewError('Nie można załadować pliku tekstowego.'));
+
+  } else {
+    showPreviewError('Podgląd tego formatu nie jest obsługiwany.');
+  }
+}
+
+function showPreviewError(msg) {
+  const body = document.getElementById('preview-body');
+  body.innerHTML = `
+    <div style="text-align:center;padding:40px;color:var(--text-muted)">
+      <i class="fas fa-exclamation-circle" style="font-size:2rem;margin-bottom:12px;color:var(--danger)"></i>
+      <p style="font-size:.9rem">${msg}</p>
+    </div>`;
+}
+
+function closePreview() {
+  const modal = document.getElementById('preview-modal');
+  const body  = document.getElementById('preview-body');
+  modal.style.display = 'none';
+  document.body.style.overflow = '';
+  body.innerHTML = '';
+  currentPreviewUrl = null;
+}
+
+document.getElementById('preview-modal').addEventListener('click', function(e) {
+  if (e.target === this) closePreview();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && currentPreviewUrl) closePreview();
+});
 </script>
+
+<style>
+.mat-row:hover { background: var(--primary-light) !important; }
+[data-theme="dark"] .mat-row:hover { background: var(--bg-sidebar-hover) !important; }
+
+/* ===== THUMBNAILS ===== */
+.mat-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--thumb-color, var(--primary)) 12%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--thumb-color, var(--primary)) 25%, var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mat-thumb > i {
+  font-size: 1.2rem;
+  color: var(--thumb-color, var(--primary));
+  z-index: 1;
+}
+.mat-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mat-thumb--fallback > i { display: flex !important; }
+
+/* Overlay z ikoną oka przy hoverze */
+.mat-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .15s ease;
+  border-radius: 7px;
+}
+.mat-thumb-overlay i { color: #fff; font-size: .85rem; }
+
+.mat-thumb--clickable {
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.mat-thumb--clickable:hover .mat-thumb-overlay { opacity: 1; }
+.mat-thumb--clickable:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+.mat-thumb--clickable:active { transform: scale(.97); }
+</style>
 {% endblock %}

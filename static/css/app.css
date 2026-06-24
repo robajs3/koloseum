@@ -188,7 +188,6 @@ a:hover { color: var(--primary-hover); }
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
 }
 
 /* ===== TOPBAR ===== */
@@ -636,13 +635,13 @@ tr:hover td { background: var(--primary-light); }
 .mobile-nav-item i { font-size: 1.1rem; }
 .mobile-nav-item.active, .mobile-nav-item:hover { color: #fff; }
 
-/* ===== RESPONSIVE ===== */
+
 @media (max-width: 768px) {
   .sidebar { transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); }
-  .main-content { margin-left: 0; padding-bottom: 70px; }
+  .main-content { margin-left: 0; }
   .mobile-nav { display: block; }
-  .page-content { padding: 16px; }
+  .page-content { padding: 16px; padding-bottom: 80px; }
   .topbar { padding: 0 16px; }
 }
 

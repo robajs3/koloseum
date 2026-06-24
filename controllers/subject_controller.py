@@ -26,6 +26,38 @@ def is_room_admin(subject: Subject) -> bool:
     return member and member.role == "admin" or current_user.is_global_admin
 
 
+# Rozszerzenia obsługiwane przez podgląd inline
+PREVIEWABLE_MIMETYPES = {
+    # Obrazy
+    ".png":  "image/png",
+    ".jpg":  "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif":  "image/gif",
+    ".webp": "image/webp",
+    ".svg":  "image/svg+xml",
+    # PDF
+    ".pdf":  "application/pdf",
+    # Tekst / kod
+    ".txt":  "text/plain",
+    ".md":   "text/plain",
+    ".csv":  "text/plain",
+    ".py":   "text/plain",
+    ".js":   "text/plain",
+    ".html": "text/plain",
+    ".css":  "text/plain",
+    ".json": "text/plain",
+    ".xml":  "text/plain",
+    # Video
+    ".mp4":  "video/mp4",
+    ".webm": "video/webm",
+    ".ogg":  "video/ogg",
+    # Audio
+    ".mp3":  "audio/mpeg",
+    ".wav":  "audio/wav",
+    ".oga":  "audio/ogg",
+}
+
+
 @subject_bp.route("/subjects")
 @login_required
 def list_subjects():
@@ -70,6 +102,7 @@ def subject_detail(subject_id: int):
         materials=materials,
         admin=admin,
         now=now,
+        previewable_extensions=set(PREVIEWABLE_MIMETYPES.keys()),
     )
 
 
@@ -151,6 +184,38 @@ def add_material(subject_id: int):
     else:
         flash("Materiał dodany!", "success")
     return redirect(url_for("subjects.subject_detail", subject_id=subject_id) + "#materials")
+
+
+@subject_bp.route("/subjects/<int:subject_id>/materials/<int:material_id>/preview")
+@login_required
+def preview_material(subject_id: int, material_id: int):
+    """Serwuje plik inline do podglądu w przeglądarce (nie jako attachment)."""
+    subject = get_subject_or_404(subject_id)
+    require_subject_access(subject)
+    material = StudyMaterial.query.get_or_404(material_id)
+
+    if material.is_filevault_link:
+        abort(400)  # linki FileVault nie mają lokalnego pliku
+
+    path = FileService.get_material_path(material)
+    if not path or not os.path.exists(path):
+        abort(404)
+
+    ext = os.path.splitext(material.original_filename)[1].lower()
+    mimetype = PREVIEWABLE_MIMETYPES.get(ext)
+    if not mimetype:
+        # Plik nie obsługuje podglądu — wyślij jako attachment
+        folder = os.path.join(current_app.config["UPLOAD_FOLDER"], "materials")
+        return send_from_directory(folder, material.filename, as_attachment=True,
+                                   download_name=material.original_filename)
+
+    folder = os.path.join(current_app.config["UPLOAD_FOLDER"], "materials")
+    response = send_from_directory(folder, material.filename, mimetype=mimetype)
+    # inline — wyświetl w przeglądarce zamiast pobierać
+    response.headers["Content-Disposition"] = (
+        f"inline; filename=\"{material.original_filename}\""
+    )
+    return response
 
 
 @subject_bp.route("/subjects/<int:subject_id>/materials/<int:material_id>/download")

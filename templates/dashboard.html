@@ -3,10 +3,10 @@
 {% block page_title %}Pulpit{% endblock %}
 
 {% block content %}
-<div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start">
+<div class="dashboard-grid">
 
   <!-- LEFT: Calendar + quick actions -->
-  <div>
+  <div class="dashboard-left">
     <!-- Calendar -->
     <div class="card mb-4">
       <div class="card-header">
@@ -64,7 +64,7 @@
   </div>
 
   <!-- RIGHT: Upcoming exams + rooms -->
-  <div>
+  <div class="dashboard-right">
     <!-- Upcoming exams -->
     <div class="card mb-4">
       <div class="card-header">
@@ -168,5 +168,61 @@
       </div>
     </div>
   </div>
+
 </div>
+
+<style>
+/* ===== DASHBOARD GRID ===== */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  grid-template-areas: "left right";
+  gap: 20px;
+  align-items: start;
+}
+.dashboard-left  { grid-area: left; }
+.dashboard-right { grid-area: right; }
+
+/* Kalendarz — minimalny rozmiar komórki na mobile */
+.cal-day { min-height: 52px; }
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "right"
+      "left";
+    gap: 16px;
+  }
+
+  /* Nadchodzące i pokoje idą pierwsze, potem kalendarz */
+
+  /* Kalendarz — pełna szerokość, mniejsze komórki */
+  .cal-day {
+    min-height: 44px;
+    padding: 3px;
+  }
+  .cal-day-num {
+    font-size: .7rem;
+    width: 20px;
+    height: 20px;
+  }
+  .cal-event-dot {
+    font-size: .55rem;
+    padding: 1px 2px;
+  }
+
+  /* Szybkie akcje — przyciski na całą szerokość */
+  .dashboard-left .card-body .btn {
+    flex: 1 1 calc(50% - 5px);
+    justify-content: center;
+  }
+}
+
+@media (max-width: 400px) {
+  .dashboard-left .card-body .btn {
+    flex: 1 1 100%;
+  }
+}
+</style>
 {% endblock %}
