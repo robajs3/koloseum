@@ -23,7 +23,7 @@
             {% elif current_user.role == 'room_admin' %}Admin pokoju
             {% else %}Student{% endif %}
           </span>
-          {% if current_user.filevault_user_id %}
+          {% if current_user.filevault_token %}
           <span style="font-size:.72rem;padding:2px 8px;border-radius:99px;
                        background:#dcfce7;color:#16a34a;margin-left:4px">
             <i class="fas fa-hdd"></i> FileVault
@@ -62,7 +62,7 @@
       <h3><i class="fas fa-hdd" style="color:var(--secondary);margin-right:8px"></i>FileVault</h3>
     </div>
     <div class="card-body">
-      {% if current_user.filevault_user_id %}
+      {% if current_user.filevault_token %}
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <i class="fas fa-check-circle" style="color:#16a34a;font-size:1.1rem"></i>
         <span style="font-size:.88rem">Konto FileVault jest powiązane.</span>
@@ -120,20 +120,6 @@
     </div>
   </div>
 
-  <!-- Theme -->
-  <div class="card">
-    <div class="card-header"><h3><i class="fas fa-palette" style="color:var(--primary);margin-right:8px"></i>Motyw</h3></div>
-    <div class="card-body">
-      <form method="POST" action="{{ url_for('profile.set_theme') }}" style="display:flex;gap:10px">
-        <button type="submit" name="theme" value="light" class="btn {% if current_user.theme=='light' %}btn-primary{% else %}btn-ghost{% endif %}">
-          <i class="fas fa-sun"></i> Jasny
-        </button>
-        <button type="submit" name="theme" value="dark" class="btn {% if current_user.theme=='dark' %}btn-primary{% else %}btn-ghost{% endif %}">
-          <i class="fas fa-moon"></i> Ciemny
-        </button>
-      </form>
-    </div>
-  </div>
 
 </div>
 {% endblock %}

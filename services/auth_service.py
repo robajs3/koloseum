@@ -1,101 +1,110 @@
-from models import db, User
-from flask import current_app
+from datetime import timedelta
+from flask import session, current_app
+from models import User, db
 import requests
 
 
 class AuthService:
 
     @staticmethod
-    def register_user(username: str, email: str, password: str) -> tuple[User | None, str | None]:
+    def login(username: str, password: str) -> User | None:
+        user = User.query.filter_by(username=username).first()
+        if user and user.is_active and user.check_password(password):
+            session.permanent = True
+            session.permanent_session_lifetime = timedelta(days=7)  # type: ignore[assignment]
+            session["user_id"] = user.id
+            return user
+        return None
+
+    @staticmethod
+    def logout() -> None:
+        session.clear()
+
+    @staticmethod
+    def register(username: str, email: str, password: str) -> tuple[User | None, str | None]:
+        if len(password) < 8:
+            return None, "Hasło musi mieć co najmniej 8 znaków."
         if User.query.filter_by(username=username).first():
-            return None, "Nazwa użytkownika jest już zajęta."
+            return None, "Nazwa użytkownika jest zajęta."
         if User.query.filter_by(email=email).first():
             return None, "Email jest już zarejestrowany."
         user = User(username=username, email=email)
         user.set_password(password)
+        if not User.query.first():
+            user.is_admin = True
         db.session.add(user)
         db.session.commit()
+        session["user_id"] = user.id
         return user, None
 
     @staticmethod
-    def login_with_filevault(fv_token: str) -> tuple[User | None, str | None]:
-        """Authenticate via FileVault token — call FileVault API to get user info."""
-        base = current_app.config.get("FILEVAULT_BASE_URL", "")
+    def register_user(username: str, email: str, password: str) -> tuple[User | None, str | None]:
+        return AuthService.register(username, email, password)
+
+    @staticmethod
+    def change_password(user: User, old: str, new: str) -> tuple[bool, str | None]:
+        if not user.check_password(old):
+            return False, "Stare hasło jest nieprawidłowe."
+        if len(new) < 8:
+            return False, "Nowe hasło musi mieć co najmniej 8 znaków."
+        user.set_password(new)
+        db.session.commit()
+        return True, None
+
+    @staticmethod
+    def _verify_filevault_token(fv_token: str) -> tuple[dict | None, str | None]:
+        """Pomocnicza: odpytuje FileVault API i zwraca dane usera lub błąd."""
+        base_url = current_app.config.get("FILEVAULT_BASE_URL", "")
+        if not base_url:
+            return None, "FileVault nie jest skonfigurowany."
         try:
-            resp = requests.get(
-                f"{base}/api/me",
-                headers={"Authorization": f"Bearer {fv_token}"},
+            r = requests.get(
+                base_url + "/api/verify",
+                headers={"X-API-Token": fv_token},
                 timeout=5,
             )
-            if resp.status_code != 200:
-                return None, "Nieprawidłowy token FileVault."
-            data = resp.json()
-            fv_user_id = data.get("id")
-            fv_email = data.get("email")
-            fv_username = data.get("username")
-        except Exception:
+        except requests.RequestException:
             return None, "Nie można połączyć się z FileVault."
-
-        # Find existing linked user
-        user = User.query.filter_by(filevault_user_id=fv_user_id).first()
-        if user:
-            user.filevault_token = fv_token
-            db.session.commit()
-            return user, None
-
-        # Auto-create user linked to FileVault
-        existing = User.query.filter_by(email=fv_email).first()
-        if existing:
-            existing.filevault_user_id = fv_user_id
-            existing.filevault_token = fv_token
-            db.session.commit()
-            return existing, None
-
-        # Create brand new user
-        username = fv_username or f"fv_{fv_user_id}"
-        while User.query.filter_by(username=username).first():
-            username = f"{username}_"
-        new_user = User(
-            username=username,
-            email=fv_email,
-            filevault_user_id=fv_user_id,
-            filevault_token=fv_token,
-        )
-        db.session.add(new_user)
-        db.session.commit()
-        return new_user, None
+        if not r.ok:
+            return None, "Nieprawidłowy token FileVault."
+        return r.json(), None
 
     @staticmethod
     def link_filevault(user: User, fv_token: str) -> tuple[bool, str | None]:
-        base = current_app.config.get("FILEVAULT_BASE_URL", "")
-        try:
-            resp = requests.get(
-                f"{base}/api/me",
-                headers={"Authorization": f"Bearer {fv_token}"},
-                timeout=5,
-            )
-            if resp.status_code != 200:
-                return False, "Nieprawidłowy token FileVault."
-            data = resp.json()
-            fv_user_id = data.get("id")
-        except Exception:
-            return False, "Nie można połączyć się z FileVault."
-
-        existing = User.query.filter_by(filevault_user_id=fv_user_id).first()
-        if existing and existing.id != user.id:
-            return False, "To konto FileVault jest już powiązane z innym użytkownikiem."
-
-        user.filevault_user_id = fv_user_id
+        """
+        Weryfikuje token FileVault i zapisuje go na koncie usera w Koloseum.
+        Używane z poziomu profilu (użytkownik jest już zalogowany).
+        """
+        data, err = AuthService._verify_filevault_token(fv_token)
+        if err:
+            return False, err
         user.filevault_token = fv_token
         db.session.commit()
         return True, None
 
     @staticmethod
-    def change_password(user: User, old_password: str, new_password: str) -> tuple[bool, str | None]:
-        if user.password_hash and not user.check_password(old_password):
-            return False, "Stare hasło jest nieprawidłowe."
-        if len(new_password) < 8:
-            return False, "Hasło musi mieć co najmniej 8 znaków."
-        user.set_password(new_password)
-        db.session.commit()
-        return True, None
+    def login_with_filevault(fv_token: str) -> tuple[User | None, str | None]:
+        """
+        Logowanie przez token FileVault (formularz logowania).
+        Szuka konta Koloseum po emailu/username z FileVault.
+        """
+        data, err = AuthService._verify_filevault_token(fv_token)
+        if err:
+            return None, err
+
+        fv_email = data.get("email")
+        fv_username = data.get("username")
+
+        user = User.query.filter(
+            (User.email == fv_email) | (User.username == fv_username)
+        ).first()
+
+        if not user:
+            return None, (
+                f"Brak konta Koloseum powiązanego z tym kontem FileVault "
+                f"({fv_email}). Zarejestruj się najpierw."
+            )
+        if not user.is_active:
+            return None, "Konto jest nieaktywne."
+
+        return user, None
