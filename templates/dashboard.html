@@ -106,9 +106,9 @@
           </div>
           <div>
             {% if days_left == 0 %}
-            <span class="badge badge-danger">Dziś!</span>
+            <span class="badge badge-danger">za mniej niż 24h</span>
             {% elif days_left == 1 %}
-            <span class="badge badge-warning">Jutro</span>
+            <span class="badge badge-warning">za mniej niż 48h</span>
             {% else %}
             <span class="badge badge-gray">{{ days_left }}d</span>
             {% endif %}

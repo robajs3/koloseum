@@ -104,8 +104,8 @@
         {% if exam.description %}<div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">{{ exam.description }}</div>{% endif %}
       </div>
       <div style="text-align:right">
-        {% if days_left == 0 %}<span class="badge badge-danger">Dziś!</span>
-        {% elif days_left == 1 %}<span class="badge badge-warning">Jutro</span>
+        {% if days_left == 0 %}<span class="badge badge-danger">za mniej niż 24h</span>
+        {% elif days_left == 1 %}<span class="badge badge-warning">za mniej niż 48h</span>
         {% else %}<span class="badge badge-gray">{{ days_left }}d</span>{% endif %}
         {% if admin %}
         <form method="POST" action="{{ url_for('subjects.delete_exam', subject_id=subject.id, exam_id=exam.id) }}"

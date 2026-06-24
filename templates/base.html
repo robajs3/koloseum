@@ -170,7 +170,9 @@
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
   // Hamburger visible on mobile
+if (window.innerWidth <= 768) {
   document.getElementById('hamburger-btn').style.display = 'flex';
+}
   // Theme icon update
   function updateThemeIcon() {
     const theme = document.documentElement.getAttribute('data-theme');
