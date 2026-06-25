@@ -17,6 +17,110 @@
     <div style="font-size:1.8rem;font-weight:700;color:var(--success)">{{ rooms|selectattr('is_active')|list|length }}</div>
     <div style="font-size:.78rem;color:var(--text-muted)">Aktywnych pokojów</div>
   </div>
+  <div class="card" style="flex:1;min-width:140px;padding:16px 20px">
+    <div style="font-size:1.8rem;font-weight:700;color:var(--warning)">{{ announcements|selectattr('is_visible')|list|length }}</div>
+    <div style="font-size:.78rem;color:var(--text-muted)">Aktywnych ogłoszeń</div>
+  </div>
+</div>
+
+<!-- ── Announcements ── -->
+<div class="card mb-4">
+  <div class="card-header" style="justify-content:space-between">
+    <h3><i class="fas fa-bullhorn" style="color:var(--warning);margin-right:8px"></i>Ogłoszenia systemowe</h3>
+  </div>
+  <div class="card-body">
+
+    <!-- Add form -->
+    <form method="POST" action="{{ url_for('admin.add_announcement') }}"
+          style="background:var(--bg-secondary,#f8f9fa);border:1px solid var(--border);border-radius:10px;padding:18px 20px;margin-bottom:20px">
+      <div style="font-weight:600;font-size:.85rem;margin-bottom:14px;color:var(--text-muted)">
+        <i class="fas fa-plus-circle" style="margin-right:6px"></i>Nowe ogłoszenie
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:10px">
+        <input type="text" name="title" class="form-control" placeholder="Tytuł ogłoszenia…" required
+               style="font-weight:500">
+        <select name="type" class="form-control" style="width:130px">
+          <option value="info">ℹ️ Info</option>
+          <option value="warning">⚠️ Ostrzeżenie</option>
+          <option value="danger">🚨 Krytyczne</option>
+          <option value="success">✅ Sukces</option>
+        </select>
+      </div>
+      <textarea name="content" class="form-control" placeholder="Treść ogłoszenia…" rows="2"
+                required style="margin-bottom:10px;resize:vertical"></textarea>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:8px;font-size:.83rem;color:var(--text-muted)">
+          <i class="fas fa-clock"></i>
+          <label style="margin:0">Wygasa:</label>
+          <input type="datetime-local" name="expires_at" class="form-control"
+                 style="width:auto;padding:4px 8px;font-size:.83rem">
+          <span style="font-size:.75rem;opacity:.7">(opcjonalnie)</span>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm" style="margin-left:auto">
+          <i class="fas fa-paper-plane"></i> Opublikuj
+        </button>
+      </div>
+    </form>
+
+    <!-- Existing announcements -->
+    {% if announcements %}
+    <div style="display:flex;flex-direction:column;gap:10px">
+      {% for ann in announcements %}
+      {% set colors = {
+        'info':    ('var(--primary-light,#dbeafe)', 'var(--primary,#3b82f6)', 'fa-info-circle'),
+        'warning': ('#fef9c3', '#d97706', 'fa-exclamation-triangle'),
+        'danger':  ('#fee2e2', '#dc2626', 'fa-exclamation-circle'),
+        'success': ('#dcfce7', '#16a34a', 'fa-check-circle'),
+      } %}
+      {% set bg, fg, ico = colors.get(ann.type, colors['info']) %}
+      <div style="border:1px solid {{ fg }};border-radius:8px;padding:12px 16px;background:{{ bg }};
+                  opacity:{% if not ann.is_visible %}0.5{% else %}1{% endif %}">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <i class="fas {{ ico }}" style="color:{{ fg }};margin-top:2px;flex-shrink:0"></i>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;color:{{ fg }};font-size:.9rem">{{ ann.title }}
+              {% if not ann.is_active %}
+              <span style="font-size:.7rem;font-weight:400;margin-left:6px;opacity:.7">[dezaktywowane]</span>
+              {% elif ann.is_expired %}
+              <span style="font-size:.7rem;font-weight:400;margin-left:6px;opacity:.7">[wygasło]</span>
+              {% endif %}
+            </div>
+            <div style="font-size:.83rem;margin-top:3px;color:inherit;opacity:.85">{{ ann.content }}</div>
+            <div style="font-size:.72rem;margin-top:6px;opacity:.6;display:flex;gap:12px;flex-wrap:wrap">
+              <span><i class="fas fa-user" style="margin-right:3px"></i>{{ ann.author.username }}</span>
+              <span><i class="fas fa-calendar" style="margin-right:3px"></i>{{ ann.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+              {% if ann.expires_at %}
+              <span><i class="fas fa-hourglass-end" style="margin-right:3px"></i>do {{ ann.expires_at.strftime('%d.%m.%Y %H:%M') }}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <form method="POST" action="{{ url_for('admin.toggle_announcement', ann_id=ann.id) }}">
+              <button type="submit" class="btn btn-ghost btn-sm"
+                      title="{% if ann.is_active %}Dezaktywuj{% else %}Aktywuj{% endif %}"
+                      style="color:{{ fg }};padding:4px 8px">
+                <i class="fas {% if ann.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}"></i>
+              </button>
+            </form>
+            <form method="POST" action="{{ url_for('admin.delete_announcement', ann_id=ann.id) }}"
+                  onsubmit="return confirm('Usunąć to ogłoszenie?')">
+              <button type="submit" class="btn btn-ghost btn-sm" title="Usuń"
+                      style="color:var(--danger);padding:4px 8px">
+                <i class="fas fa-trash"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:.85rem">
+      <i class="fas fa-bell-slash" style="font-size:1.5rem;margin-bottom:8px;display:block;opacity:.4"></i>
+      Brak ogłoszeń. Dodaj pierwsze powyżej.
+    </div>
+    {% endif %}
+  </div>
 </div>
 
 <!-- Users table -->

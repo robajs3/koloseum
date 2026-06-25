@@ -3,6 +3,29 @@
 {% block page_title %}Pulpit{% endblock %}
 
 {% block content %}
+
+{% if announcements %}
+<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px">
+  {% for ann in announcements %}
+  {% set styles = {
+    'info':    ('var(--primary-light,#dbeafe)', 'var(--primary,#2563eb)', 'fa-info-circle'),
+    'warning': ('#fef9c3', '#b45309', 'fa-exclamation-triangle'),
+    'danger':  ('#fee2e2', '#dc2626', 'fa-exclamation-circle'),
+    'success': ('#dcfce7', '#15803d', 'fa-check-circle'),
+  } %}
+  {% set bg, fg, ico = styles.get(ann.type, styles['info']) %}
+  <div style="background:{{ bg }};border:1px solid {{ fg }};border-radius:10px;padding:12px 16px;
+              display:flex;align-items:flex-start;gap:10px">
+    <i class="fas {{ ico }}" style="color:{{ fg }};margin-top:3px;flex-shrink:0"></i>
+    <div>
+      <strong style="color:{{ fg }};font-size:.88rem">{{ ann.title }}</strong>
+      <div style="font-size:.83rem;margin-top:2px;color:inherit;opacity:.85">{{ ann.content }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="dashboard-grid">
 
   <!-- LEFT: Calendar + quick actions -->
