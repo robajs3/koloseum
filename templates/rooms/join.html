@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Dołącz do pokoju — Koloseum{% endblock %}
+{% block page_title %}Dołącz do pokoju{% endblock %}
+
+{% block content %}
+<div style="max-width:480px;margin:0 auto">
+  <div class="card">
+    <div class="card-header">
+      <h2><i class="fas fa-sign-in-alt" style="color:var(--primary);margin-right:8px"></i>Dołącz przez kod</h2>
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        <div class="form-group">
+          <label class="form-label">Kod zaproszenia</label>
+          <input type="text" name="code" class="form-control" value="{{ code }}"
+                 placeholder="np. ABC12345" required maxlength="16" autofocus
+                 style="text-transform:uppercase;letter-spacing:2px;font-size:1.1rem;font-weight:600">
+          <div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">
+            Kod możesz dostać od administratora pokoju.
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <a href="{{ url_for('rooms.list_rooms') }}" class="btn btn-ghost">Anuluj</a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-sign-in-alt"></i> Dołącz
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

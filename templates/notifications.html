@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Powiadomienia — Koloseum{% endblock %}
+{% block page_title %}Powiadomienia{% endblock %}
+
+{% block content %}
+<div style="max-width:700px;margin:0 auto">
+  <div class="card">
+    <div class="card-header">
+      <h2><i class="fas fa-bell" style="color:var(--primary);margin-right:8px"></i>Powiadomienia</h2>
+      {% if notifications %}
+      <button class="btn btn-ghost btn-sm" onclick="markAllRead()">
+        <i class="fas fa-check-double"></i> Oznacz wszystkie
+      </button>
+      {% endif %}
+    </div>
+    <div class="card-body" style="padding:0">
+      {% if notifications %}
+        {% for n in notifications %}
+        <div class="notif-item {% if not n.is_read %}notif-unread{% endif %}" id="notif-{{ n.id }}"
+             style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;
+                    border-bottom:1px solid var(--border);
+                    background:{% if not n.is_read %}var(--primary-light){% else %}transparent{% endif %}">
+          <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
+                      justify-content:center;flex-shrink:0;font-size:1rem;
+                      background:{% if n.type=='exam' %}#fee2e2{% elif n.type=='reminder' %}#fef3c7{% elif n.type=='chat' %}#dbeafe{% else %}#f0fdf4{% endif %};
+                      color:{% if n.type=='exam' %}#dc2626{% elif n.type=='reminder' %}#d97706{% elif n.type=='chat' %}#2563eb{% else %}#16a34a{% endif %}">
+            <i class="fas fa-{% if n.type=='exam' %}calendar-alt{% elif n.type=='reminder' %}clock{% elif n.type=='chat' %}comment{% else %}info-circle{% endif %}"></i>
+          </div>
+          <div style="flex:1">
+            <div style="font-weight:{% if not n.is_read %}600{% else %}400{% endif %};font-size:.88rem">
+              {{ n.title }}
+            </div>
+            {% if n.body %}
+            <div style="font-size:.8rem;color:var(--text-muted);margin-top:2px">{{ n.body }}</div>
+            {% endif %}
+            <div style="font-size:.72rem;color:var(--text-light);margin-top:4px">
+              {{ n.created_at.strftime('%d.%m.%Y %H:%M') }}
+            </div>
+          </div>
+          {% if not n.is_read %}
+          <button class="btn btn-ghost btn-sm" onclick="markRead({{ n.id }})" title="Oznacz jako przeczytane">
+            <i class="fas fa-check"></i>
+          </button>
+          {% endif %}
+          {% if n.link %}
+          <a href="{{ n.link }}" class="btn btn-ghost btn-sm" title="Przejdź">
+            <i class="fas fa-arrow-right"></i>
+          </a>
+          {% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
+      <div class="empty-state">
+        <div class="empty-icon">🔔</div>
+        <p>Brak powiadomień.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+function markRead(id) {
+  fetch(`${window.PREFIX}/notifications/${id}/read`, {method:'POST'})
+    .then(() => {
+      const el = document.getElementById('notif-' + id);
+      if (el) { el.style.background = ''; el.querySelector('.btn')?.remove(); }
+    });
+}
+function markAllRead() {
+  fetch(`${window.PREFIX}/notifications/read-all`, {method:'POST'})
+    .then(() => location.reload());
+}
+</script>
+{% endblock %}

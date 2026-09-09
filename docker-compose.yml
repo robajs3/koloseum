@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-koloseum_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-koloseum_pass}
+      POSTGRES_DB: ${DB_NAME:-koloseum}
+    volumes:
+      - koloseum_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-koloseum_user} -d ${DB_NAME:-koloseum}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    # Stała nazwa kontenera — inne appki (np. planowiec, przy imporcie
+    # egzaminów) łączą się z koloseum po tej nazwie w sieci sso_net,
+    # dokładnie tak jak łączą się z LoginHub po nazwie "hub-web".
+    container_name: koloseum-web
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-zmien-mnie-na-losowy-dlugi-ciag-znakow}
+      DATABASE_URL: postgresql://${DB_USER:-koloseum_user}:${DB_PASSWORD:-koloseum_pass}@db:5432/${DB_NAME:-koloseum}
+      UPLOAD_FOLDER: /app/uploads
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      FILEVAULT_BASE_URL: ${FILEVAULT_BASE_URL:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_CLAIMS_EMAIL: ${VAPID_CLAIMS_EMAIL:-}
+      # SSO (LoginHub) — SSO_SECRET musi być DOKŁADNIE tą samą wartością co
+      # w .env LoginHub. hub-web to nazwa kontenera LoginHub w sso_net.
+      SSO_SECRET: ${SSO_SECRET:-}
+      HUB_INTERNAL_URL: ${HUB_INTERNAL_URL:-http://hub-web:8000}
+    ports:
+      # Zmapowane na localhost — Tailscale Serve wskazuje na ten port,
+      # tak jak wcześniej wskazywał na usługę systemd na 5001.
+      - "${APP_PORT:-5001}:5000"
+    volumes:
+      - koloseum_uploads:/app/uploads
+    networks:
+      - default
+      - sso_net
+
+volumes:
+  koloseum_pgdata:
+  koloseum_uploads:
+
+networks:
+  default:
+  sso_net:
+    external: true

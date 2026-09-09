@@ -1,0 +1,668 @@
+{% extends "base.html" %}
+{% block title %}{{ subject.name }} — Koloseum{% endblock %}
+{% block page_title %}{{ subject.name }}{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+  <div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:14px;height:14px;border-radius:3px;background:{{ subject.color }}"></span>
+      <h2 style="margin:0">{{ subject.name }}</h2>
+    </div>
+    <div style="font-size:.8rem;color:var(--text-muted);margin-top:4px">
+      <a href="{{ url_for('rooms.room_detail', room_id=subject.room_id) }}" style="color:var(--primary)">
+        {{ subject.room.name }}
+      </a>
+    </div>
+  </div>
+  {% if subject.filevault_folder_url %}
+  <a href="{{ subject.filevault_folder_url }}" target="_blank" class="btn btn-ghost">
+    <i class="fas fa-hdd"></i> Folder FileVault
+    <i class="fas fa-external-link-alt" style="font-size:.65rem"></i>
+  </a>
+  {% endif %}
+</div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid var(--border);padding-bottom:0">
+  {% for tab_id, tab_label, tab_icon in [('exams','Terminy','calendar-alt'),('chat','Czat','comments'),('materials','Materiały','folder')] %}
+  <button class="tab-btn" id="tab-{{ tab_id }}" onclick="switchTab('{{ tab_id }}')"
+          style="padding:8px 16px;border:none;background:none;cursor:pointer;font-size:.88rem;
+                 font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;
+                 margin-bottom:-2px;transition:all .15s">
+    <i class="fas fa-{{ tab_icon }}" style="margin-right:5px"></i>{{ tab_label }}
+    {% if tab_id == 'exams' and upcoming_exams %}
+    <span style="background:var(--danger);color:#fff;font-size:.65rem;padding:1px 5px;
+                 border-radius:99px;margin-left:4px">{{ upcoming_exams|length }}</span>
+    {% endif %}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- EXAMS TAB -->
+<div id="pane-exams">
+  {% if admin %}
+  <div class="card mb-4">
+    <div class="card-header"><h4><i class="fas fa-plus" style="color:var(--primary);margin-right:6px"></i>Dodaj termin</h4></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('subjects.create_exam', subject_id=subject.id) }}">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="grid-column:1/-1">
+            <label class="form-label">Tytuł *</label>
+            <input type="text" name="title" class="form-control" placeholder="np. Kolokwium 1" required maxlength="256">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data i godzina *</label>
+            <input type="datetime-local" name="exam_date" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Typ</label>
+            <select name="exam_type" class="form-control">
+              {% for v, l in [('kolokwium','Kolokwium'),('egzamin','Egzamin'),('kartkówka','Kartkówka'),('deadline','Deadline'),('inne','Inne')] %}
+              <option value="{{ v }}">{{ l }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Miejsce</label>
+            <input type="text" name="location" class="form-control" placeholder="np. Sala 101" maxlength="256">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Opis</label>
+            <input type="text" name="description" class="form-control" placeholder="Opcjonalny opis" maxlength="512">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="fas fa-plus"></i> Dodaj termin
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if upcoming_exams %}
+  <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.5px">Nadchodzące</h4>
+  {% for exam in upcoming_exams %}
+  {% set days_left = (exam.exam_date - now).days %}
+  <div class="card mb-3" style="border-left:4px solid
+    {% if exam.exam_type=='kolokwium' %}#4f46e5{% elif exam.exam_type=='egzamin' %}#dc2626{% elif exam.exam_type=='kartkówka' %}#d97706{% elif exam.exam_type=='deadline' %}#7c3aed{% else %}#6b7280{% endif %}">
+    <div class="card-body" style="display:flex;align-items:center;gap:14px">
+      <div style="text-align:center;min-width:48px">
+        <div style="font-size:1.4rem;font-weight:700;line-height:1;color:var(--primary)">{{ exam.exam_date.strftime('%d') }}</div>
+        <div style="font-size:.7rem;color:var(--text-muted)">{{ exam.exam_date.strftime('%b %Y') }}</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:.92rem">{{ exam.title }}</div>
+        <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap">
+          <span><i class="fas fa-clock"></i> {{ exam.exam_date.strftime('%H:%M') }}</span>
+          {% if exam.location %}<span><i class="fas fa-map-marker-alt"></i> {{ exam.location }}</span>{% endif %}
+          <span class="badge badge-{% if exam.exam_type=='egzamin' %}danger{% elif exam.exam_type=='kolokwium' %}primary{% else %}gray{% endif %}">
+            {{ exam.exam_type }}
+          </span>
+        </div>
+        {% if exam.description %}<div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">{{ exam.description }}</div>{% endif %}
+      </div>
+      <div style="text-align:right">
+        {% if days_left == 0 %}<span class="badge badge-danger">za mniej niż 24h</span>
+        {% elif days_left == 1 %}<span class="badge badge-warning">za mniej niż 48h</span>
+        {% else %}<span class="badge badge-gray">{{ days_left }}d</span>{% endif %}
+        {% if admin %}
+        <form method="POST" action="{{ url_for('subjects.delete_exam', subject_id=subject.id, exam_id=exam.id) }}"
+              style="margin-top:6px" onsubmit="return confirm('Usunąć ten termin?')">
+          <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger)">
+            <i class="fas fa-trash"></i>
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if past_exams %}
+  <h4 style="margin:20px 0 10px;color:var(--text-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.5px">Minione</h4>
+  {% for exam in past_exams %}
+  <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:8px;
+              background:var(--bg-secondary);margin-bottom:6px;opacity:.7">
+    <div style="font-size:.78rem;color:var(--text-muted);min-width:80px">
+      {{ exam.exam_date.strftime('%d.%m.%Y') }}
+    </div>
+    <div style="font-size:.85rem;font-weight:500;flex:1">{{ exam.title }}</div>
+    <span style="font-size:.7rem;color:var(--text-muted)">{{ exam.exam_type }}</span>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if not upcoming_exams and not past_exams %}
+  <div class="empty-state"><div class="empty-icon">📅</div><p>Brak terminów dla tego przedmiotu.</p></div>
+  {% endif %}
+</div>
+
+<!-- CHAT TAB -->
+<div id="pane-chat" style="display:none">
+  <div class="card" style="max-height:460px;overflow-y:auto;margin-bottom:12px" id="chat-box">
+    {% if messages %}
+    {% for msg in messages %}
+    {% if not msg.is_deleted %}
+    <div style="display:flex;gap:10px;padding:10px 16px;{% if msg.user_id == current_user.id %}flex-direction:row-reverse{% endif %}">
+      <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);
+                  display:flex;align-items:center;justify-content:center;
+                  color:#fff;font-size:.78rem;font-weight:600;flex-shrink:0">
+        {{ msg.author.username[0].upper() }}
+      </div>
+      <div style="max-width:70%;background:{% if msg.user_id == current_user.id %}var(--primary){% else %}var(--bg-secondary){% endif %};
+                  color:{% if msg.user_id == current_user.id %}#fff{% else %}var(--text){% endif %};
+                  padding:8px 12px;border-radius:12px;font-size:.85rem">
+        {% if msg.user_id != current_user.id %}
+        <div style="font-size:.7rem;font-weight:600;opacity:.7;margin-bottom:2px">{{ msg.author.username }}</div>
+        {% endif %}
+        {% if msg.content %}{{ msg.content }}{% endif %}
+
+        {% for att in msg.attachments %}
+        {# Określ typ załącznika #}
+        {% set ext = att.original_filename.rsplit('.', 1)[-1].lower() if (att.original_filename and '.' in att.original_filename) else '' %}
+        {% set is_image = ext in ['png','jpg','jpeg','gif','webp','svg'] %}
+        {% set is_pdf   = ext == 'pdf' %}
+        {% set is_text  = ext in ['txt','md','csv','py','js','html','css','json','xml'] %}
+        {% set is_video = ext in ['mp4','webm','ogg'] %}
+        {% set is_audio = ext in ['mp3','wav','oga'] %}
+        {% set can_preview = (not att.filevault_link) and (is_image or is_pdf or is_text or is_video or is_audio) %}
+
+        {% if att.filevault_link %}
+          {% set file_icon = 'link' %}{% set icon_color = 'var(--secondary)' %}
+        {% elif is_pdf %}
+          {% set file_icon = 'file-pdf' %}{% set icon_color = '#dc2626' %}
+        {% elif is_image %}
+          {% set file_icon = 'file-image' %}{% set icon_color = '#0284c7' %}
+        {% elif is_video %}
+          {% set file_icon = 'file-video' %}{% set icon_color = '#7c3aed' %}
+        {% elif is_audio %}
+          {% set file_icon = 'file-audio' %}{% set icon_color = '#d97706' %}
+        {% elif is_text %}
+          {% set file_icon = 'file-code' %}{% set icon_color = '#64748b' %}
+        {% else %}
+          {% set file_icon = 'file' %}{% set icon_color = 'var(--primary)' %}
+        {% endif %}
+
+        {% set att_url = url_for('subjects.download_attachment', attachment_id=att.id) %}
+        {% set preview_type = 'image' if is_image else 'pdf' if is_pdf else 'video' if is_video else 'audio' if is_audio else 'text' %}
+
+        <div style="margin-top:6px">
+          {% if can_preview %}
+          <div style="display:flex;align-items:center;gap:8px;cursor:pointer"
+               onclick="openPreview('{{ att_url }}', '{{ att.original_filename|e }}', '{{ preview_type }}')">
+            <div class="mat-thumb mat-thumb--clickable"
+                 style="--thumb-color:{{ icon_color }};width:36px;height:36px">
+              {% if is_image %}
+              <img src="{{ att_url }}" alt="{{ att.original_filename|e }}"
+                   loading="lazy"
+                   onerror="this.parentElement.classList.add('mat-thumb--fallback');this.remove()">
+              {% else %}
+              <i class="fas fa-{{ file_icon }}"></i>
+              {% endif %}
+              <div class="mat-thumb-overlay"><i class="fas fa-eye"></i></div>
+            </div>
+            <span style="font-size:.78rem;text-decoration:underline;text-underline-offset:2px;opacity:.85">
+              {{ att.original_filename }}
+            </span>
+          </div>
+          {% elif att.filevault_link %}
+          <a href="{{ att.filevault_link }}" target="_blank" style="color:inherit;font-size:.78rem;display:flex;align-items:center;gap:8px">
+            <div class="mat-thumb" style="--thumb-color:var(--secondary);width:36px;height:36px;cursor:default">
+              <i class="fas fa-link"></i>
+            </div>
+            <span style="text-decoration:underline;text-underline-offset:2px;opacity:.85">{{ att.original_filename }}</span>
+          </a>
+          {% else %}
+          <a href="{{ att_url }}" style="color:inherit;font-size:.78rem;display:flex;align-items:center;gap:8px">
+            <div class="mat-thumb" style="--thumb-color:{{ icon_color }};width:36px;height:36px;cursor:default">
+              <i class="fas fa-{{ file_icon }}"></i>
+            </div>
+            <span style="opacity:.85">{{ att.original_filename }}
+              <span style="opacity:.6">({{ (att.file_size/1024)|round(1) }} KB)</span>
+            </span>
+          </a>
+          {% endif %}
+        </div>
+        {% endfor %}
+
+        <div style="font-size:.65rem;opacity:.6;margin-top:3px;text-align:right">
+          {{ msg.created_at.strftime('%H:%M') }}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% else %}
+    <div class="empty-state"><div class="empty-icon">💬</div><p>Brak wiadomości. Napisz pierwszą!</p></div>
+    {% endif %}
+  </div>
+  <form method="POST" action="{{ url_for('subjects.send_message', subject_id=subject.id) }}"
+        enctype="multipart/form-data">
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1">
+        <textarea name="content" class="form-control" rows="2"
+                  placeholder="Napisz wiadomość…" style="resize:none"></textarea>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer" title="Załącz plik (max 100 MB)">
+          <i class="fas fa-paperclip"></i>
+          <input type="file" name="file" style="display:none">
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- MATERIALS TAB -->
+<div id="pane-materials" style="display:none">
+  <div class="card mb-4">
+    <div class="card-header"><h4><i class="fas fa-upload" style="color:var(--primary);margin-right:6px"></i>Dodaj materiał</h4></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('subjects.add_material', subject_id=subject.id) }}"
+            enctype="multipart/form-data">
+        <div class="form-group">
+          <label class="form-label">Tytuł *</label>
+          <input type="text" name="title" class="form-control" placeholder="np. Notatki z wykładu 3" required maxlength="256">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Opis</label>
+          <input type="text" name="description" class="form-control" placeholder="Opcjonalny opis">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Plik (max 100 MB)</label>
+          <input type="file" name="file" class="form-control">
+          <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">
+            Pliki powyżej 100 MB — skorzystaj z FileVault.
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lub link FileVault</label>
+          <input type="text" name="filevault_link" class="form-control" placeholder="https://…/filevault/share/…">
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-upload"></i> Dodaj</button>
+      </form>
+    </div>
+  </div>
+
+  {% if materials %}
+  <div class="card">
+    <div class="card-body" style="padding:0">
+      {% for mat in materials %}
+      {% set ext = mat.original_filename.rsplit('.', 1)[-1].lower() if (mat.original_filename and '.' in mat.original_filename) else '' %}
+      {% set is_image = ext in ['png','jpg','jpeg','gif','webp','svg'] %}
+      {% set is_pdf   = ext == 'pdf' %}
+      {% set is_text  = ext in ['txt','md','csv','py','js','html','css','json','xml'] %}
+      {% set is_video = ext in ['mp4','webm','ogg'] %}
+      {% set is_audio = ext in ['mp3','wav','oga'] %}
+      {% set is_docx  = ext in ['docx','doc'] %}
+      {% set is_xlsx  = ext in ['xlsx','xls'] %}
+      {% set can_preview = (not mat.is_filevault_link) and (is_image or is_pdf or is_text or is_video or is_audio) %}
+
+      {% if mat.is_filevault_link %}
+        {% set file_icon = 'link' %}{% set icon_color = 'var(--secondary)' %}
+      {% elif is_pdf %}
+        {% set file_icon = 'file-pdf' %}{% set icon_color = '#dc2626' %}
+      {% elif is_image %}
+        {% set file_icon = 'file-image' %}{% set icon_color = '#0284c7' %}
+      {% elif is_docx %}
+        {% set file_icon = 'file-word' %}{% set icon_color = '#2563eb' %}
+      {% elif is_xlsx %}
+        {% set file_icon = 'file-excel' %}{% set icon_color = '#059669' %}
+      {% elif is_video %}
+        {% set file_icon = 'file-video' %}{% set icon_color = '#7c3aed' %}
+      {% elif is_audio %}
+        {% set file_icon = 'file-audio' %}{% set icon_color = '#d97706' %}
+      {% elif is_text %}
+        {% set file_icon = 'file-code' %}{% set icon_color = '#64748b' %}
+      {% else %}
+        {% set file_icon = 'file' %}{% set icon_color = 'var(--primary)' %}
+      {% endif %}
+
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;
+                  border-bottom:1px solid var(--border);transition:background var(--transition)"
+           class="mat-row">
+        <!-- Thumbnail -->
+        {% if can_preview %}
+          {% set preview_type = 'image' if is_image else 'pdf' if is_pdf else 'video' if is_video else 'audio' if is_audio else 'text' %}
+          {% set preview_url = url_for('subjects.preview_material', subject_id=subject.id, material_id=mat.id) %}
+          <div class="mat-thumb mat-thumb--clickable"
+               onclick="openPreview('{{ preview_url }}', '{{ mat.title|e }}', '{{ preview_type }}')"
+               title="Kliknij, aby otworzyć podgląd"
+               style="--thumb-color:{{ icon_color }}">
+            {% if is_image %}
+            <img src="{{ preview_url }}" alt="{{ mat.title|e }}"
+                 loading="lazy"
+                 onerror="this.parentElement.classList.add('mat-thumb--fallback');this.remove()">
+            {% else %}
+            <i class="fas fa-{{ file_icon }}"></i>
+            {% endif %}
+            <div class="mat-thumb-overlay"><i class="fas fa-eye"></i></div>
+          </div>
+        {% else %}
+          <div class="mat-thumb" style="--thumb-color:{{ icon_color }};cursor:default">
+            <i class="fas fa-{{ file_icon }}"></i>
+          </div>
+        {% endif %}
+
+        <!-- Info -->
+        <div style="flex:1;overflow:hidden;min-width:0">
+          <div style="font-weight:500;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ mat.title }}
+          </div>
+          {% if mat.description %}
+          <div style="font-size:.75rem;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            {{ mat.description }}
+          </div>
+          {% endif %}
+          <div style="font-size:.7rem;color:var(--text-light);display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">
+            <span>{{ mat.uploader.username }}</span>
+            <span>{{ mat.created_at.strftime('%d.%m.%Y') }}</span>
+            {% if not mat.is_filevault_link and mat.file_size %}
+            <span>{{ (mat.file_size/1024/1024)|round(1) }} MB</span>
+            {% endif %}
+            {% if not mat.is_filevault_link %}
+            <span style="color:var(--text-light);text-transform:uppercase;font-size:.65rem;
+                         background:var(--bg);border:1px solid var(--border);
+                         border-radius:3px;padding:0 4px">{{ ext }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Akcje -->
+        <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          {% if can_preview %}
+          <button class="btn btn-ghost btn-sm"
+                  onclick="openPreview('{{ url_for('subjects.preview_material', subject_id=subject.id, material_id=mat.id) }}', '{{ mat.title|e }}', '{{ 'image' if is_image else 'pdf' if is_pdf else 'video' if is_video else 'audio' if is_audio else 'text' }}')"
+                  title="Podgląd">
+            <i class="fas fa-eye"></i>
+          </button>
+          {% elif is_docx or is_xlsx %}
+          <span class="btn btn-ghost btn-sm" style="cursor:default;opacity:.4" title="Podgląd niedostępny dla tego formatu">
+            <i class="fas fa-eye-slash"></i>
+          </span>
+          {% endif %}
+
+          {% if mat.is_filevault_link %}
+          <a href="{{ mat.filevault_link }}" target="_blank" class="btn btn-ghost btn-sm" title="Otwórz w FileVault">
+            <i class="fas fa-external-link-alt"></i>
+          </a>
+          {% else %}
+          <a href="{{ url_for('subjects.download_material', subject_id=subject.id, material_id=mat.id) }}"
+             class="btn btn-ghost btn-sm" title="Pobierz">
+            <i class="fas fa-download"></i>
+          </a>
+          {% endif %}
+
+          {% if mat.uploaded_by == current_user.id or admin %}
+          <form method="POST" action="{{ url_for('subjects.delete_material', subject_id=subject.id, material_id=mat.id) }}"
+                onsubmit="return confirm('Usunąć materiał?')" style="margin:0">
+            <button type="submit" class="btn btn-ghost btn-sm" style="color:var(--danger)" title="Usuń">
+              <i class="fas fa-trash"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty-state"><div class="empty-icon">📂</div><p>Brak materiałów.</p></div>
+  {% endif %}
+
+  {% if admin %}
+  <div class="card" style="margin-top:16px">
+    <div class="card-header"><h4><i class="fas fa-hdd" style="color:var(--secondary);margin-right:6px"></i>Folder FileVault</h4></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('subjects.set_filevault_folder', subject_id=subject.id) }}">
+        <div class="form-group">
+          <input type="text" name="filevault_folder_url" class="form-control"
+                 value="{{ subject.filevault_folder_url or '' }}"
+                 placeholder="https://…/filevault/shared-folder/…">
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-link"></i> Zapisz folder</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ===== MODAL PODGLĄDU ===== -->
+<div id="preview-modal" style="display:none;position:fixed;inset:0;z-index:1000;
+     background:rgba(0,0,0,.7);backdrop-filter:blur(4px);
+     align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+              width:100%;max-width:900px;max-height:90vh;display:flex;flex-direction:column;
+              box-shadow:var(--shadow-md);overflow:hidden">
+
+    <!-- Nagłówek modala -->
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:8px;min-width:0">
+        <i class="fas fa-eye" style="color:var(--primary);flex-shrink:0"></i>
+        <span id="preview-title" style="font-weight:600;font-size:.9rem;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:12px">
+        <a id="preview-download-btn" href="#" class="btn btn-ghost btn-sm" title="Pobierz">
+          <i class="fas fa-download"></i>
+        </a>
+        <button onclick="closePreview()" class="btn btn-ghost btn-sm" title="Zamknij">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Zawartość podglądu -->
+    <div id="preview-body" style="flex:1;overflow:auto;min-height:0;display:flex;
+                                   align-items:center;justify-content:center;
+                                   background:var(--bg);padding:0">
+      <!-- wypełniane przez JS -->
+    </div>
+
+    <!-- Pasek ładowania -->
+    <div id="preview-loader" style="display:none;position:absolute;inset:0;
+         background:var(--bg-card);align-items:center;justify-content:center;z-index:10;
+         border-radius:var(--radius)">
+      <div style="text-align:center;color:var(--text-muted)">
+        <div class="spinner" style="margin:0 auto 10px"></div>
+        <div style="font-size:.82rem">Ładowanie podglądu…</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const tabs = ['exams','chat','materials'];
+function switchTab(active) {
+  tabs.forEach(t => {
+    document.getElementById('pane-'+t).style.display = t===active ? '' : 'none';
+    const btn = document.getElementById('tab-'+t);
+    btn.style.color = t===active ? 'var(--primary)' : 'var(--text-muted)';
+    btn.style.borderBottomColor = t===active ? 'var(--primary)' : 'transparent';
+    btn.style.fontWeight = t===active ? '600' : '500';
+  });
+}
+const hash = location.hash.replace('#','');
+if (tabs.includes(hash)) switchTab(hash);
+else switchTab('exams');
+
+const chatBox = document.getElementById('chat-box');
+if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+/* ===== PODGLĄD PLIKÓW ===== */
+let currentPreviewUrl = null;
+
+function openPreview(url, title, type) {
+  currentPreviewUrl = url;
+  const modal   = document.getElementById('preview-modal');
+  const body    = document.getElementById('preview-body');
+  const titleEl = document.getElementById('preview-title');
+  const dlBtn   = document.getElementById('preview-download-btn');
+
+  titleEl.textContent = title;
+  dlBtn.href = url;
+
+  body.innerHTML = '';
+
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  if (type === 'image') {
+    const img = document.createElement('img');
+    img.src = url;
+    img.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain;display:block;';
+    img.onerror = () => showPreviewError('Nie można załadować obrazu.');
+    body.style.padding = '16px';
+    body.appendChild(img);
+
+  } else if (type === 'pdf') {
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.cssText = 'width:100%;height:100%;border:none;min-height:70vh;';
+    iframe.onerror = () => showPreviewError('Nie można załadować PDF.');
+    body.style.padding = '0';
+    body.style.display = 'block';
+    body.appendChild(iframe);
+
+  } else if (type === 'video') {
+    const video = document.createElement('video');
+    video.src = url;
+    video.controls = true;
+    video.style.cssText = 'max-width:100%;max-height:80vh;border-radius:4px;';
+    video.onerror = () => showPreviewError('Nie można odtworzyć wideo.');
+    body.style.padding = '16px';
+    body.appendChild(video);
+
+  } else if (type === 'audio') {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'padding:32px;text-align:center;width:100%';
+    const icon = document.createElement('div');
+    icon.innerHTML = '<i class="fas fa-music" style="font-size:3rem;color:var(--primary);margin-bottom:16px"></i>';
+    const audio = document.createElement('audio');
+    audio.src = url;
+    audio.controls = true;
+    audio.style.cssText = 'width:100%;max-width:480px;margin-top:8px;';
+    audio.onerror = () => showPreviewError('Nie można odtworzyć audio.');
+    wrap.appendChild(icon);
+    wrap.appendChild(audio);
+    body.appendChild(wrap);
+
+  } else if (type === 'text') {
+    body.style.padding = '0';
+    body.style.display = 'block';
+    body.style.alignItems = 'unset';
+    body.style.justifyContent = 'unset';
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(text => {
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'margin:0;padding:20px;font-size:.82rem;line-height:1.6;'
+                          + 'font-family:monospace;white-space:pre-wrap;word-break:break-all;'
+                          + 'color:var(--text);background:var(--bg);min-height:100%;width:100%;'
+                          + 'box-sizing:border-box;';
+        pre.textContent = text;
+        body.appendChild(pre);
+      })
+      .catch(() => showPreviewError('Nie można załadować pliku tekstowego.'));
+
+  } else {
+    showPreviewError('Podgląd tego formatu nie jest obsługiwany.');
+  }
+}
+
+function showPreviewError(msg) {
+  const body = document.getElementById('preview-body');
+  body.innerHTML = `
+    <div style="text-align:center;padding:40px;color:var(--text-muted)">
+      <i class="fas fa-exclamation-circle" style="font-size:2rem;margin-bottom:12px;color:var(--danger)"></i>
+      <p style="font-size:.9rem">${msg}</p>
+    </div>`;
+}
+
+function closePreview() {
+  const modal = document.getElementById('preview-modal');
+  const body  = document.getElementById('preview-body');
+  modal.style.display = 'none';
+  document.body.style.overflow = '';
+  body.innerHTML = '';
+  currentPreviewUrl = null;
+}
+
+document.getElementById('preview-modal').addEventListener('click', function(e) {
+  if (e.target === this) closePreview();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && currentPreviewUrl) closePreview();
+});
+</script>
+
+<style>
+.mat-row:hover { background: var(--primary-light) !important; }
+[data-theme="dark"] .mat-row:hover { background: var(--bg-sidebar-hover) !important; }
+
+/* ===== THUMBNAILS ===== */
+.mat-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--thumb-color, var(--primary)) 12%, var(--bg));
+  border: 1px solid color-mix(in srgb, var(--thumb-color, var(--primary)) 25%, var(--border));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mat-thumb > i {
+  font-size: 1.2rem;
+  color: var(--thumb-color, var(--primary));
+  z-index: 1;
+}
+.mat-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.mat-thumb--fallback > i { display: flex !important; }
+
+/* Overlay z ikoną oka przy hoverze */
+.mat-thumb-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .15s ease;
+  border-radius: 7px;
+}
+.mat-thumb-overlay i { color: #fff; font-size: .85rem; }
+
+.mat-thumb--clickable {
+  cursor: pointer;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.mat-thumb--clickable:hover .mat-thumb-overlay { opacity: 1; }
+.mat-thumb--clickable:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+}
+.mat-thumb--clickable:active { transform: scale(.97); }
+</style>
+{% endblock %}
