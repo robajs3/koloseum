@@ -29,6 +29,10 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-koloseum_user}:${DB_PASSWORD:-koloseum_pass}@db:5432/${DB_NAME:-koloseum}
       UPLOAD_FOLDER: /app/uploads
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
+      # Prefiks widziany przez przeglądarkę/Tailscale Serve — patrz
+      # PrefixMiddleware w app.py. Domyślna wartość w config.py i tak jest
+      # "/koloseum", to tylko pozwala nadpisać w razie potrzeby.
+      PREFIX: ${PREFIX:-/koloseum}
       FILEVAULT_BASE_URL: ${FILEVAULT_BASE_URL:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}

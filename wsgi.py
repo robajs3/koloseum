@@ -5,10 +5,9 @@ Użycie:
     gunicorn -b 0.0.0.0:5000 wsgi:application
 """
 
-from app import create_app, init_db
+from app import create_wsgi_app
 
-application = create_app()
-init_db(application)
+application = create_wsgi_app()
 
 # Alias, bo część narzędzi (np. `flask run`) szuka "app"
 app = application
