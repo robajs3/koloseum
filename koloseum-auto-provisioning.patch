@@ -1,0 +1,179 @@
+diff --git a/app.py b/app.py
+index 55d069a..0e4e022 100644
+--- a/app.py
++++ b/app.py
+@@ -1,4 +1,5 @@
+ import os
++import secrets
+ from datetime import date, datetime
+ from flask import Flask, render_template, redirect, url_for, abort, send_from_directory
+ from flask_login import LoginManager, current_user, login_user
+@@ -8,6 +9,40 @@ from controllers import auth_bp, dashboard_bp, room_bp, subject_bp, profile_bp,
+ import sso_client
+ 
+ 
++def _create_koloseum_user(hub_username: str):
++    """Zakłada w Koloseum nowe lokalne konto dla usera z LoginHub, który
++    jeszcze nie miał tu żadnego konta. Wywoływane przez
++    sso_client.resolve_or_create_local_user przy pierwszej wizycie.
++
++    Hasło jest losowe i nieznane nikomu — to konto loguje się wyłącznie
++    przez SSO (chyba że user później zmieni hasło z poziomu profilu).
++    get-or-create po username, żeby powtórne wywołanie (np. gdy zgłoszenie
++    do Huba nie doszło za pierwszym razem) nie tworzyło duplikatu.
++    """
++    existing = User.query.filter_by(username=hub_username).first()
++    if existing:
++        return existing.id, existing.username
++
++    username = hub_username
++    suffix = 1
++    while User.query.filter_by(username=username).first():
++        suffix += 1
++        username = f"{hub_username}{suffix}"
++
++    # email jest w Koloseum wymagany i unikalny, a Hub go nie zna —
++    # generujemy placeholder, użytkownik może go później zmienić w profilu.
++    email = f"{username}@sso.local"
++    while User.query.filter_by(email=email).first():
++        suffix += 1
++        email = f"{hub_username}{suffix}@sso.local"
++
++    user = User(username=username, email=email)
++    user.set_password(secrets.token_urlsafe(24))
++    db.session.add(user)
++    db.session.commit()
++    return user.id, user.username
++
++
+ def create_app(config_class=Config) -> Flask:
+     app = Flask(__name__)
+     app.config.from_object(config_class)
+@@ -27,14 +62,18 @@ def create_app(config_class=Config) -> Flask:
+ 
+     # --- SSO (LoginHub) ---------------------------------------------------
+     # Jeśli user nie jest zalogowany lokalnie, sprawdź czy ma ważne ciasteczko
+-    # LoginHub i czy jego konto jest połączone z koloseum. Jeśli tak — zaloguj
+-    # go lokalnie, tak jakby przeszedł przez /koloseum/login. Zwykłe logowanie
+-    # hasłem zostaje bez zmian jako plan B.
++    # LoginHub. Jeśli jego konto jest już połączone z koloseum — zaloguj go
++    # lokalnie. Jeśli NIE jest jeszcze połączone — resolve_or_create_local_user
++    # samo zakłada tu dla niego nowe konto (_create_koloseum_user) i zgłasza
++    # połączenie do Huba, więc nie trzeba czekać na ręczne sparowanie w /admin.
++    # Zwykłe logowanie hasłem zostaje bez zmian jako plan B.
+     @app.before_request
+     def _sso_autologin():
+         if current_user.is_authenticated:
+             return
+-        local_id = sso_client.resolve_local_user_id(app_slug="koloseum")
++        local_id = sso_client.resolve_or_create_local_user(
++            app_slug="koloseum", create_user=_create_koloseum_user
++        )
+         if local_id:
+             user = User.query.get(local_id)
+             if user:
+diff --git a/sso_client.py b/sso_client.py
+index c81a469..9fe3b63 100644
+--- a/sso_client.py
++++ b/sso_client.py
+@@ -85,6 +85,100 @@ def resolve_local_user_id(
+     return payload["local_user_id"]
+ 
+ 
++def resolve_or_create_local_user(
++    app_slug: str,
++    create_user,
++    cookie_name: str = None,
++    sso_secret: str = None,
++    hub_internal_url: str = None,
++    max_age_days: int = None,
++):
++    """Jak `resolve_local_user_id`, ale gdy konto z Huba NIE jest jeszcze podłączone
++    do tej appki, zamiast zwrócić None od razu automatycznie zakłada tu dla niego
++    nowe lokalne konto i zgłasza połączenie do LoginHub — użytkownik nie musi czekać,
++    aż admin ręcznie sparuje konta w panelu /admin.
++
++    `create_user` to funkcja appki (Ty ją piszesz, bo tylko appka zna swój model
++    User i schemat hasła):
++
++        def create_user(hub_username: str) -> tuple[int, str | None]:
++            # 1) załóż nowego usera swoim zwykłym mechanizmem (swoje ORM, swój
++            #    hash hasła), z hasłem losowym/nieużywalnym — logowanie i tak
++            #    zawsze będzie szło przez SSO;
++            # 2) jeśli hub_username koliduje z istniejącym userem lokalnym,
++            #    rozwiąż to po swojemu (np. dopisz sufiks);
++            # 3) zwróć (nowy_local_user_id, local_username_do_wyswietlenia_w_hubie).
++
++    WAŻNE — idempotencja: jeśli zgłoszenie do Huba (/api/link) nie dojdzie (Hub
++    akurat niedostępny), przy KOLEJNYM requeście appka znów nie zobaczy linku i
++    `create_user` zostanie wywołane ponownie. Żeby uniknąć duplikatów, warto, żeby
++    `create_user` najpierw sprawdzał, czy lokalne konto o takim (deterministycznie
++    wyprowadzonym z hub_username) identyfikatorze już istnieje, i wtedy zwracał je
++    zamiast tworzyć nowe (czyli "get-or-create", nie "create").
++
++    Zwraca local_user_id (int) albo None — przy None appka po prostu pokazuje swój
++    normalny /login, nic się nie psuje.
++    """
++    cookie_name = cookie_name or os.environ.get("SSO_COOKIE_NAME", "sso_session")
++    sso_secret = sso_secret or os.environ.get("SSO_SECRET")
++    hub_internal_url = (hub_internal_url or os.environ.get("HUB_INTERNAL_URL", "http://127.0.0.1:8011")).rstrip("/")
++    max_age_days = max_age_days or int(os.environ.get("SSO_SESSION_DAYS", "30"))
++
++    if not sso_secret:
++        return None
++
++    token = request.cookies.get(cookie_name)
++    if not token:
++        return None
++
++    data = _verify_cookie(sso_secret, token, max_age_days * 86400)
++    if not data:
++        return None
++
++    hub_user_id = data["hub_user_id"]
++
++    try:
++        resp = requests.get(
++            f"{hub_internal_url}/api/resolve",
++            params={"app_slug": app_slug, "hub_user_id": hub_user_id},
++            headers={"X-SSO-Api-Key": sso_secret},
++            timeout=3,
++        )
++    except requests.RequestException:
++        return None  # Hub niedostępny — nie zgadujemy, zwykły /login jako plan B
++
++    if resp.status_code == 200:
++        payload = resp.json()
++        if payload.get("linked"):
++            return payload["local_user_id"]
++    elif resp.status_code != 404:
++        return None  # nieoczekiwana odpowiedź Huba
++
++    # brak połączenia -> appka sama zakłada tu konto dla tego usera z Huba
++    try:
++        local_user_id, local_username = create_user(data["username"])
++    except Exception:
++        return None  # appka nie potrafiła założyć konta — zwykły /login jako plan B
++
++    try:
++        requests.post(
++            f"{hub_internal_url}/api/link",
++            json={
++                "app_slug": app_slug,
++                "hub_user_id": hub_user_id,
++                "local_user_id": local_user_id,
++                "local_username": local_username,
++            },
++            headers={"X-SSO-Api-Key": sso_secret},
++            timeout=3,
++        )
++    except requests.RequestException:
++        pass  # appka i tak ma już lokalne konto i zaloguje usera w tym requeście;
++        # Hub po prostu nie będzie o nim jeszcze wiedział do następnej udanej próby
++
++    return local_user_id
++
++
+ def login_url(next_path: str, hub_public_prefix: str = "/auth") -> str:
+     """Buduje adres logowania w LoginHub z powrotem-linkiem do bieżącej appki."""
+     from urllib.parse import quote
