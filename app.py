@@ -1,7 +1,7 @@
 import os
 import secrets
 from datetime import date, datetime
-from flask import Flask, render_template, redirect, url_for, abort, send_from_directory
+from flask import Flask, render_template, redirect, url_for, abort, send_from_directory, jsonify
 from flask_login import LoginManager, current_user, login_user
 from config import Config
 from models import db, User
@@ -114,6 +114,36 @@ def create_app(config_class=Config) -> Flask:
     def service_worker():
         response = send_from_directory("static/js", "sw.js")
         response.headers["Service-Worker-Allowed"] = "/"
+        return response
+
+    # Web App Manifest — generowany dynamicznie, bo start_url/scope MUSZĄ być
+    # bezwzględnymi ścieżkami widzianymi przez przeglądarkę (z prefiksem
+    # /koloseum), inaczej instalacja jako PWA (i push na iOS Safari, który
+    # wymaga appki dodanej do ekranu głównego) się nie uda. Statyczny plik nie
+    # mógłby zawrzeć PREFIX bez przebudowy przy każdej zmianie konfiguracji.
+    @app.route("/manifest.json")
+    def web_app_manifest():
+        prefix = (app.config.get("PREFIX") or "").rstrip("/")
+        manifest = {
+            "name": "Koloseum",
+            "short_name": "Koloseum",
+            "description": "Zarządzanie terminami i kolokwiami dla studentów",
+            "start_url": f"{prefix}/",
+            "scope": f"{prefix}/",
+            "display": "standalone",
+            "orientation": "portrait-primary",
+            "background_color": "#0f1115",
+            "theme_color": "#4f46e5",
+            "icons": [
+                {"src": f"{prefix}/static/img/icon-72.png", "sizes": "72x72", "type": "image/png", "purpose": "any"},
+                {"src": f"{prefix}/static/img/icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "any"},
+                {"src": f"{prefix}/static/img/icon-144.png", "sizes": "144x144", "type": "image/png", "purpose": "any"},
+                {"src": f"{prefix}/static/img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+                {"src": f"{prefix}/static/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
+            ],
+        }
+        response = jsonify(manifest)
+        response.headers["Content-Type"] = "application/manifest+json"
         return response
 
     # Template globals

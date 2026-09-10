@@ -33,12 +33,22 @@ class NotificationService:
             }
             if not vapid_private:
                 return
+            prefix = current_app.config.get("PREFIX", "/koloseum")
             webpush(
                 subscription_info=subscription_info,
-                data=json.dumps({"title": title, "body": body, "link": link or "/koloseum/"}),
+                data=json.dumps({"title": title, "body": body, "link": link or f"{prefix}/"}),
                 vapid_private_key=vapid_private,
                 vapid_claims=vapid_claims,
             )
+        except WebPushException as e:
+            status = getattr(e.response, "status_code", None)
+            if status in (404, 410):
+                # Subskrypcja wygasła / przeglądarka ją unregisterowała (np.
+                # po wcześniejszym niedziałającym SW pod Tailscale) —
+                # czyścimy ją, żeby nie zaśmiecać logów przy każdym powiadomieniu.
+                user.push_subscription = None
+                db.session.commit()
+            current_app.logger.warning(f"Push notification failed for user {user.id}: {e}")
         except Exception as e:
             current_app.logger.warning(f"Push notification failed for user {user.id}: {e}")
 

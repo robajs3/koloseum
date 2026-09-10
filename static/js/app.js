@@ -205,30 +205,94 @@ function initFlashDismiss() {
   });
 }
 
-// Push notification setup
+// Service worker registration
+//
+// WAŻNE: rejestrujemy pod window.PREFIX + '/sw.js', NIE pod '/static/js/sw.js'.
+// Pod Tailscale Serve (--set-path /koloseum) tylko ścieżki zaczynające się od
+// prefiksu są przepuszczane do backendu — bezwzględna ścieżka bez prefiksu
+// (np. samo "/static/js/sw.js") nigdy nie trafiała do serwera, więc
+// rejestracja Service Workera (a przez to cały push) po wrzuceniu na
+// Tailscale kończyła się cichym błędem, mimo że lokalnie (serwer na roocie)
+// działało bez problemu. "/sw.js" jest osobno serwowany w app.py z nagłówkiem
+// Service-Worker-Allowed, żeby scope objął cały prefiks appki.
+let _swRegPromise = null;
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return Promise.resolve(null);
+  if (_swRegPromise) return _swRegPromise;
+  _swRegPromise = navigator.serviceWorker
+    .register(window.PREFIX + '/sw.js', { scope: window.PREFIX + '/' })
+    .catch(e => {
+      console.warn('SW registration failed:', e);
+      return null;
+    });
+  return _swRegPromise;
+}
+
+function isIosSafari() {
+  const ua = window.navigator.userAgent;
+  const isIos = /iPad|iPhone|iPod/.test(ua) || (ua.includes('Mac') && 'ontouchend' in document);
+  const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+  return isIos && isSafari;
+}
+
+function isStandalonePwa() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+// Push notification setup — wywoływane po kliknięciu przycisku (permission
+// prompt musi być odpowiedzią na gest użytkownika, inaczej przeglądarki go
+// blokują).
 async function setupPushNotifications() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (isIosSafari() && !isStandalonePwa()) {
+      showToast('Na iPhone/iPad: najpierw dodaj Koloseum do ekranu głównego (Udostępnij → Dodaj do ekranu początkowego), potem otwórz appkę z ikony i włącz powiadomienia.', 'info');
+    } else {
+      showToast('Ta przeglądarka nie wspiera powiadomień push.', 'warning');
+    }
+    return;
+  }
   try {
+    const reg = await registerServiceWorker();
+    if (!reg) {
+      showToast('Nie udało się zarejestrować Service Workera.', 'danger');
+      return;
+    }
+    await navigator.serviceWorker.ready;
+
     const r = await fetch(window.PREFIX + '/profile/vapid-public-key');
     const { publicKey } = await r.json();
-    if (!publicKey) return;
+    if (!publicKey) {
+      showToast('Serwer nie ma skonfigurowanego VAPID_PUBLIC_KEY.', 'danger');
+      return;
+    }
 
-    const reg = await navigator.serviceWorker.register('/static/js/sw.js');
     const perm = await Notification.requestPermission();
-    if (perm !== 'granted') return;
+    if (perm !== 'granted') {
+      showToast('Nie zgodziłeś się na powiadomienia — nie mogę ich włączyć.', 'warning');
+      return;
+    }
 
-    const sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    }
 
-    await fetch(window.PREFIX + '/profile/push-subscribe', {
+    const resp = await fetch(window.PREFIX + '/profile/push-subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(sub),
     });
+    if (resp.ok) {
+      showToast('Powiadomienia push włączone!', 'success');
+    } else {
+      showToast('Serwer odrzucił subskrypcję push.', 'danger');
+    }
   } catch (e) {
     console.warn('Push setup failed:', e);
+    showToast('Nie udało się włączyć powiadomień push.', 'danger');
   }
 }
 
@@ -265,6 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initFlashDismiss();
   scrollChatToBottom();
   NotificationManager.updateBadge();
+  registerServiceWorker(); // rejestracja SW nie wymaga zgody, robimy ją zawsze (installability + gotowość na push)
   setInterval(() => NotificationManager.updateBadge(), 30000);
 
   if (document.getElementById('cal-grid')) {
