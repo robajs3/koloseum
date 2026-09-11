@@ -64,6 +64,10 @@
         <span class="badge">{{ unread_notifications }}</span>
         {% endif %}
       </a>
+      <a class="nav-item {% if request.endpoint == 'profile.install_app' %}active{% endif %}"
+         href="{{ url_for('profile.install_app') }}">
+        <i class="fas fa-mobile-screen-button nav-icon"></i> Zainstaluj aplikację
+      </a>
 
       {% if current_user.is_global_admin %}
       <span class="nav-section">Admin</span>

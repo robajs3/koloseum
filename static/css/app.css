@@ -274,6 +274,56 @@ a:hover { color: var(--primary-hover); }
 
 .card-body { padding: 20px; }
 
+/* ===== INSTALL GUIDE (PWA) ===== */
+.install-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.install-step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.install-step-num {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: .85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.install-step-body { flex: 1; }
+.install-step-body p { font-size: .88rem; color: var(--text); margin-bottom: 8px; }
+
+.screenshot-placeholder {
+  width: 100%;
+  max-width: 260px;
+  aspect-ratio: 9 / 16;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: .78rem;
+  text-align: center;
+  padding: 12px;
+}
+
+.screenshot-placeholder i { font-size: 1.6rem; opacity: .5; }
+
 /* ===== BUTTONS ===== */
 .btn {
   display: inline-flex;

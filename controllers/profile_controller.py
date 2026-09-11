@@ -14,6 +14,12 @@ def profile():
                            filevault_url=current_app.config.get("FILEVAULT_BASE_URL", ""))
 
 
+@profile_bp.route("/pomoc/instalacja")
+@login_required
+def install_app():
+    return render_template("profile/install_app.html")
+
+
 @profile_bp.route("/profile/change-password", methods=["POST"])
 @login_required
 def change_password():

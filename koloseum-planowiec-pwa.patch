@@ -1,0 +1,205 @@
+diff --git a/app.py b/app.py
+index 8b0c7c6..c6c58d8 100644
+--- a/app.py
++++ b/app.py
+@@ -1,6 +1,6 @@
+ import os
+ from datetime import date, datetime
+-from flask import Flask, render_template, redirect, abort
++from flask import Flask, render_template, redirect, abort, send_from_directory, jsonify
+ from flask_login import LoginManager
+ 
+ from config import Config
+@@ -41,6 +41,38 @@ def create_app(config_class=Config) -> Flask:
+     def root():
+         return redirect(PREFIX + "/")
+ 
++    # PWA: service worker (musi być serwowany spod prefiksu appki, żeby
++    # jego "scope" obejmował /koloseum/, inaczej przeglądarka nie pozwoli
++    # zainstalować appki spod /static/)
++    @app.route(PREFIX + "/service-worker.js")
++    def service_worker():
++        response = send_from_directory(app.static_folder, "service-worker.js")
++        response.headers["Service-Worker-Allowed"] = PREFIX + "/"
++        response.headers["Cache-Control"] = "no-cache"
++        response.headers["Content-Type"] = "application/javascript"
++        return response
++
++    # PWA: web app manifest, generowany dynamicznie żeby start_url/scope
++    # zawsze zgadzały się z aktualnym PREFIX
++    @app.route(PREFIX + "/manifest.webmanifest")
++    def web_manifest():
++        manifest = {
++            "name": "Koloseum",
++            "short_name": "Koloseum",
++            "start_url": PREFIX + "/",
++            "scope": PREFIX + "/",
++            "display": "standalone",
++            "background_color": "#0f1115",
++            "theme_color": "#0f1115",
++            "icons": [
++                {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
++                {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"},
++            ],
++        }
++        response = jsonify(manifest)
++        response.headers["Content-Type"] = "application/manifest+json"
++        return response
++
+     # Template globals
+     @app.context_processor
+     def inject_globals():
+@@ -53,6 +85,10 @@ def create_app(config_class=Config) -> Flask:
+             "now": datetime.utcnow(),
+             "prefix": PREFIX,
+             "filevault_url": app.config.get("FILEVAULT_BASE_URL", "/filevault"),
++            "planowiec_url": app.config.get("PLANOWIEC_BASE_URL", "/planowiec"),
++            "other_apps_url": app.config.get("OTHER_APPS_BASE_URL", "/"),
++            "manifest_url": PREFIX + "/manifest.webmanifest",
++            "service_worker_url": PREFIX + "/service-worker.js",
+             "unread_notifications": unread,
+         }
+ 
+diff --git a/config.py b/config.py
+index 25a1176..0a23609 100644
+--- a/config.py
++++ b/config.py
+@@ -29,6 +29,12 @@ class Config:
+     FILEVAULT_SECRET = os.getenv("FILEVAULT_SECRET")
+     FILEVAULT_API_TOKEN = os.getenv("FILEVAULT_API_TOKEN")  # token do API FileVault
+ 
++    # Planowiec - appka do planowania, żyje pod własnym prefiksem /planowiec
++    PLANOWIEC_BASE_URL = os.getenv("PLANOWIEC_BASE_URL", "/planowiec")
++
++    # Pozostałe zewnętrzne aplikacje bez własnego prefiksu (redirect do roota domeny)
++    OTHER_APPS_BASE_URL = os.getenv("OTHER_APPS_BASE_URL", "/")
++
+     VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY")
+     VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
+     VAPID_CLAIMS_EMAIL = os.getenv("VAPID_CLAIMS_EMAIL")
+diff --git a/static/js/pwa-install.js b/static/js/pwa-install.js
+new file mode 100644
+index 0000000..942e33c
+--- /dev/null
++++ b/static/js/pwa-install.js
+@@ -0,0 +1,44 @@
++// static/js/pwa-install.js
++// Rejestruje service workera i obsługuje przycisk "Zainstaluj aplikację".
++// Oczekuje w DOM elementu #pwa-install-btn (patrz templates/partials/pwa_install.html).
++
++(function () {
++  const SW_URL = window.KOLOSEUM_SW_URL;
++  const SW_SCOPE = window.KOLOSEUM_PREFIX ? window.KOLOSEUM_PREFIX + "/" : "/";
++
++  if ("serviceWorker" in navigator && SW_URL) {
++    window.addEventListener("load", () => {
++      navigator.serviceWorker
++        .register(SW_URL, { scope: SW_SCOPE })
++        .catch((err) => console.warn("Nie udało się zarejestrować service workera:", err));
++    });
++  }
++
++  let deferredPrompt = null;
++  const installBtn = document.getElementById("pwa-install-btn");
++
++  if (!installBtn) return;
++
++  // Domyślnie ukryty - pokazujemy dopiero, gdy przeglądarka faktycznie
++  // pozwala zainstalować appkę
++  installBtn.hidden = true;
++
++  window.addEventListener("beforeinstallprompt", (event) => {
++    event.preventDefault();
++    deferredPrompt = event;
++    installBtn.hidden = false;
++  });
++
++  installBtn.addEventListener("click", async () => {
++    if (!deferredPrompt) return;
++    installBtn.hidden = true;
++    deferredPrompt.prompt();
++    await deferredPrompt.userChoice;
++    deferredPrompt = null;
++  });
++
++  window.addEventListener("appinstalled", () => {
++    installBtn.hidden = true;
++    deferredPrompt = null;
++  });
++})();
+diff --git a/static/service-worker.js b/static/service-worker.js
+new file mode 100644
+index 0000000..a12ba95
+--- /dev/null
++++ b/static/service-worker.js
+@@ -0,0 +1,48 @@
++// static/service-worker.js
++// Minimalny service worker pod PWA "zainstaluj aplikację".
++// Cache'uje app shell, żeby appka dało się zainstalować i otworzyć offline
++// (bez świeżych danych, ale bez białego ekranu).
++
++const CACHE_NAME = "koloseum-shell-v1";
++const APP_SHELL = [
++  self.registration.scope, // np. /koloseum/
++];
++
++self.addEventListener("install", (event) => {
++  event.waitUntil(
++    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL))
++  );
++  self.skipWaiting();
++});
++
++self.addEventListener("activate", (event) => {
++  event.waitUntil(
++    caches.keys().then((keys) =>
++      Promise.all(
++        keys
++          .filter((key) => key !== CACHE_NAME)
++          .map((key) => caches.delete(key))
++      )
++    )
++  );
++  self.clients.claim();
++});
++
++self.addEventListener("fetch", (event) => {
++  const { request } = event;
++
++  // Tylko GET, tylko ten sam origin - reszty (API, POST) nie ruszamy
++  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) {
++    return;
++  }
++
++  event.respondWith(
++    fetch(request)
++      .then((response) => {
++        const copy = response.clone();
++        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
++        return response;
++      })
++      .catch(() => caches.match(request).then((cached) => cached || caches.match(self.registration.scope)))
++  );
++});
+diff --git a/templates/partials/pwa_install.html b/templates/partials/pwa_install.html
+new file mode 100644
+index 0000000..d2e5fc6
+--- /dev/null
++++ b/templates/partials/pwa_install.html
+@@ -0,0 +1,16 @@
++{# Dołącz w <head> layoutu bazowego (np. templates/base.html):
++     <link rel="manifest" href="{{ manifest_url }}">
++     <meta name="theme-color" content="#0f1115">
++
++   Dołącz gdzieś w widocznym miejscu (np. sidebar, obok linków Dysk/Planowiec):
++     {% include "partials/pwa_install.html" %}
++#}
++<button id="pwa-install-btn" type="button" class="btn-install-app" hidden>
++    Zainstaluj aplikację
++</button>
++
++<script>
++  window.KOLOSEUM_PREFIX = "{{ prefix }}";
++  window.KOLOSEUM_SW_URL = "{{ service_worker_url }}";
++</script>
++<script src="{{ url_for('static', filename='js/pwa-install.js') }}" defer></script>
