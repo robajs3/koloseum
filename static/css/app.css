@@ -304,10 +304,16 @@ a:hover { color: var(--primary-hover); }
 .install-step-body { flex: 1; }
 .install-step-body p { font-size: .88rem; color: var(--text); margin-bottom: 8px; }
 
+/* Zrzuty z telefonu (Android/iOS) są pionowe -> wąski, wysoki limit.
+   Zrzuty z komputera (web) są poziome -> szerszy limit (klasa .wide).
+   Celowo BEZ aspect-ratio/object-fit na obrazku: to właśnie wymuszony na
+   sztywno stosunek 9:16 + object-fit:cover ucinał poziome screeny webowe.
+   Obrazek zawsze trzyma naturalne proporcje (height:auto), ograniczamy mu
+   tylko max-width, żeby nie zajmował całej szerokości karty. */
 .screenshot-placeholder {
   width: 100%;
   max-width: 260px;
-  aspect-ratio: 9 / 16;
+  min-height: 220px;
   border: 2px dashed var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
@@ -322,41 +328,28 @@ a:hover { color: var(--primary-hover); }
   padding: 12px;
 }
 
+.screenshot-placeholder.wide { max-width: 640px; min-height: 260px; }
+
 .screenshot-placeholder i { font-size: 1.6rem; opacity: .5; }
 
 .install-screenshot {
+  display: block;
   width: 100%;
+  height: auto;
   max-width: 260px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg);
-  display: block;
 }
+
+.install-screenshot.wide { max-width: 640px; }
 
 .install-screenshot-wrap {
   width: 100%;
   max-width: 260px;
-  aspect-ratio: 9 / 16;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  position: relative;
-  background: var(--bg);
 }
 
-.install-screenshot-wrap .screenshot-placeholder {
-  position: absolute;
-  inset: 0;
-  max-width: none;
-  aspect-ratio: auto;
-  transition: opacity .15s ease;
-}
-
-.install-screenshot-wrap .install-screenshot {
-  max-width: none;
-  height: 100%;
-  object-fit: cover;
-  position: relative;
-}
+.install-screenshot-wrap.wide { max-width: 640px; }
 
 /* ===== INSTALL GUIDE — ACCORDION ===== */
 .install-accordion {
