@@ -11,6 +11,9 @@ import os
 
 subject_bp = Blueprint("subjects", __name__)
 
+# Ta sama nazwa ciasteczka co w LoginHub/FileVault — patrz services/filevault_client.py.
+SSO_COOKIE_NAME = os.environ.get("SSO_COOKIE_NAME", "sso_session")
+
 
 def get_subject_or_404(subject_id: int) -> Subject:
     return Subject.query.get_or_404(subject_id)
@@ -251,12 +254,17 @@ def delete_material(subject_id: int, material_id: int):
 @login_required
 def filevault_browse(subject_id: int):
     """AJAX: zwraca ostatnie pliki i udostępnione foldery zalogowanego usera
-    z jego konta FileVault — dane do panelu 'Wybierz z FileVault'."""
+    z jego konta FileVault — dane do panelu 'Wybierz z FileVault'.
+
+    Autoryzacja idzie przez to samo ciasteczko LoginHub, które ma
+    przeglądarka (patrz services/filevault_client.py) — nie trzeba żadnego
+    ręcznego tokenu, jeśli user loguje się przez SSO."""
     subject = get_subject_or_404(subject_id)
     require_subject_access(subject)
-    if not current_user.filevault_api_token:
-        return jsonify({"error": "no_token"}), 400
-    data = filevault_client.browse(current_user.filevault_api_token)
+    sso_cookie = request.cookies.get(SSO_COOKIE_NAME)
+    if not sso_cookie and not current_user.filevault_api_token:
+        return jsonify({"error": "not_linked"}), 400
+    data = filevault_client.browse(sso_cookie_value=sso_cookie, token=current_user.filevault_api_token)
     if data is None:
         return jsonify({"error": "unavailable"}), 502
     return jsonify(data)
@@ -269,9 +277,12 @@ def filevault_quick_share_file(subject_id: int, file_id: int):
     żeby od razu wypełnić nim formularz dodawania materiału."""
     subject = get_subject_or_404(subject_id)
     require_subject_access(subject)
-    if not current_user.filevault_api_token:
-        return jsonify({"error": "no_token"}), 400
-    share_url = filevault_client.quick_share_file(current_user.filevault_api_token, file_id)
+    sso_cookie = request.cookies.get(SSO_COOKIE_NAME)
+    if not sso_cookie and not current_user.filevault_api_token:
+        return jsonify({"error": "not_linked"}), 400
+    share_url = filevault_client.quick_share_file(
+        file_id, sso_cookie_value=sso_cookie, token=current_user.filevault_api_token
+    )
     if not share_url:
         return jsonify({"error": "failed"}), 502
     return jsonify({"share_url": share_url})
@@ -283,9 +294,12 @@ def filevault_quick_share_folder(subject_id: int, folder_id: int):
     """AJAX: udostępnia (jeśli trzeba) wybrany folder z FileVault i zwraca link."""
     subject = get_subject_or_404(subject_id)
     require_subject_access(subject)
-    if not current_user.filevault_api_token:
-        return jsonify({"error": "no_token"}), 400
-    share_url = filevault_client.quick_share_folder(current_user.filevault_api_token, folder_id)
+    sso_cookie = request.cookies.get(SSO_COOKIE_NAME)
+    if not sso_cookie and not current_user.filevault_api_token:
+        return jsonify({"error": "not_linked"}), 400
+    share_url = filevault_client.quick_share_folder(
+        folder_id, sso_cookie_value=sso_cookie, token=current_user.filevault_api_token
+    )
     if not share_url:
         return jsonify({"error": "failed"}), 502
     return jsonify({"share_url": share_url})

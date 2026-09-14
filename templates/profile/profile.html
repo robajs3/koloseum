@@ -66,25 +66,29 @@
       <hr style="border:none;border-top:1px solid var(--border);margin:16px 0">
 
       <h4 style="font-size:.9rem;margin-bottom:6px">Panel szybkiego wyboru w przedmiotach</h4>
-      {% if current_user.filevault_api_token %}
       <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">
         <i class="fas fa-check-circle" style="color:var(--success)"></i>
-        Konto FileVault połączone — w zakładce „Materiały” każdego przedmiotu
-        możesz wybierać swoje ostatnie pliki i udostępnione foldery bez
+        Jeśli logujesz się przez LoginHub, to działa automatycznie — w
+        zakładce „Materiały” każdego przedmiotu możesz od razu wybierać
+        swoje ostatnie pliki i udostępnione foldery z FileVault, bez
         kopiowania linków.
       </p>
+      {% if current_user.filevault_api_token %}
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">
+        <i class="fas fa-link"></i> Masz też ręcznie podłączony token API
+        (przyda się, jeśli kiedyś zalogujesz się lokalnym hasłem zamiast SSO).
+      </p>
       <form method="POST" action="{{ url_for('profile.set_filevault_token') }}"
-            onsubmit="return confirm('Odłączyć konto FileVault? Panel szybkiego wyboru przestanie działać.')">
+            onsubmit="return confirm('Odłączyć ręczny token FileVault?')">
         <input type="hidden" name="filevault_api_token" value="">
         <button type="submit" class="btn btn-danger btn-sm">
-          <i class="fas fa-unlink"></i> Odłącz konto FileVault
+          <i class="fas fa-unlink"></i> Odłącz token FileVault
         </button>
       </form>
       {% else %}
       <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">
-        Połącz konto, żeby w zakładce „Materiały” przedmiotu dodawać pliki i
-        foldery z FileVault jednym kliknięciem, zamiast wklejać linki ręcznie.
-        Token wygenerujesz w
+        Logujesz się lokalnym hasłem, nie przez LoginHub? Możesz zamiast
+        tego podłączyć konto ręcznie tokenem, wygenerowanym w
         <a href="{{ filevault_url }}/profile" target="_blank">panelu FileVault → Profil → Token API</a>.
       </p>
       <form method="POST" action="{{ url_for('profile.set_filevault_token') }}" style="display:flex;gap:8px;flex-wrap:wrap">

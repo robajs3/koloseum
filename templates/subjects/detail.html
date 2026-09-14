@@ -593,13 +593,15 @@ function openFilevaultPanel(target) {
   fetch(FV_BROWSE_URL)
     .then(r => r.json().then(data => ({ status: r.status, data })))
     .then(({ status, data }) => {
-      if (status === 400 && data.error === 'no_token') {
+      if (status === 400 && data.error === 'not_linked') {
         body.innerHTML = `<div style="text-align:center;padding:20px 10px">
           <i class="fas fa-plug" style="font-size:1.6rem;color:var(--text-muted);margin-bottom:10px;display:block"></i>
           <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:14px">
-            Nie masz jeszcze połączonego konta FileVault.
+            Nie widzę połączenia z Twoim kontem FileVault. Jeśli logujesz się
+            przez LoginHub, spróbuj się przelogować — w innym wypadku możesz
+            połączyć konto ręcznie tokenem w profilu.
           </p>
-          <a href="${FV_PROFILE_URL}" class="btn btn-primary btn-sm">Połącz w profilu</a>
+          <a href="${FV_PROFILE_URL}" class="btn btn-primary btn-sm">Przejdź do profilu</a>
         </div>`;
         return;
       }
