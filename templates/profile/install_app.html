@@ -17,143 +17,228 @@
     </div>
   </div>
 
-  <!-- WEB / PC -->
-  <div class="card">
-    <div class="card-header">
-      <h3><i class="fas fa-desktop" style="color:var(--primary);margin-right:8px"></i>Komputer (Chrome / Edge)</h3>
-    </div>
-    <div class="card-body">
-      <div class="install-steps">
+  <!-- Akordeon: rozwijana jest tylko jedna platforma naraz, a screeny
+       ładują się dopiero po rozwinięciu sekcji (patrz JS niżej) -->
+  <div class="install-accordion" id="install-accordion">
 
-        <div class="install-step">
-          <div class="install-step-num">1</div>
-          <div class="install-step-body">
-            <p>Kliknij ikonę <strong>trzech kropek (⋮)</strong> w prawym górnym rogu okna przeglądarki.</p>
-            <div class="screenshot-placeholder">
-              <i class="fas fa-camera"></i>
-              Miejsce na screenshot<br>Krok 1 — menu ⋮ (prawy górny róg)
+    <!-- WEB / PC -->
+    <div class="install-accordion-item" data-platform="web">
+      <button type="button" class="install-accordion-trigger" aria-expanded="false">
+        <i class="fas fa-desktop" style="color:var(--primary)"></i>
+        <h3>Komputer (Chrome / Edge)</h3>
+        <i class="fas fa-chevron-down chevron"></i>
+      </button>
+      <div class="install-accordion-panel">
+        <div class="install-accordion-panel-inner">
+          <div class="install-steps">
+
+            <div class="install-step">
+              <div class="install-step-num">1</div>
+              <div class="install-step-body">
+                <p>Kliknij ikonę <strong>trzech kropek (⋮)</strong> w prawym górnym rogu okna przeglądarki.</p>
+                <div class="install-screenshot-wrap">
+                  <div class="screenshot-placeholder"><i class="fas fa-camera"></i>Ładowanie…</div>
+                  <img class="install-screenshot" data-src="{{ url_for('static', filename='img/web-1.png') }}"
+                       alt="Krok 1 — menu ⋮ w przeglądarce" style="display:none">
+                </div>
+              </div>
             </div>
+
+            <div class="install-step">
+              <div class="install-step-num">2</div>
+              <div class="install-step-body">
+                <p>Najedź na <strong>„Przesyłaj, zapisuj, udostępniaj”</strong>.</p>
+                <div class="install-screenshot-wrap">
+                  <div class="screenshot-placeholder"><i class="fas fa-camera"></i>Ładowanie…</div>
+                  <img class="install-screenshot" data-src="{{ url_for('static', filename='img/web-2.png') }}"
+                       alt="Krok 2 — „Przesyłaj, zapisuj, udostępniaj”" style="display:none">
+                </div>
+              </div>
+            </div>
+
+            <div class="install-step">
+              <div class="install-step-num">3</div>
+              <div class="install-step-body">
+                <p>Z rozwiniętego podmenu wybierz <strong>„Zainstaluj: Koloseum”</strong>.</p>
+                <div class="install-screenshot-wrap">
+                  <div class="screenshot-placeholder"><i class="fas fa-camera"></i>Ładowanie…</div>
+                  <img class="install-screenshot" data-src="{{ url_for('static', filename='img/web-3.png') }}"
+                       alt="Krok 3 — „Zainstaluj: Koloseum”" style="display:none">
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
-
-        <div class="install-step">
-          <div class="install-step-num">2</div>
-          <div class="install-step-body">
-            <p>Najedź na <strong>„Przesyłaj, zapisuj, udostępniaj”</strong>.</p>
-            <div class="screenshot-placeholder">
-              <i class="fas fa-camera"></i>
-              Miejsce na screenshot<br>Krok 2 — „Przesyłaj, zapisuj, udostępniaj”
-            </div>
-          </div>
-        </div>
-
-        <div class="install-step">
-          <div class="install-step-num">3</div>
-          <div class="install-step-body">
-            <p>Z rozwiniętego podmenu wybierz <strong>„Zainstaluj: Koloseum”</strong>.</p>
-            <div class="screenshot-placeholder">
-              <i class="fas fa-camera"></i>
-              Miejsce na screenshot<br>Krok 3 — „Zainstaluj: Koloseum”
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
-  </div>
 
-  <!-- ANDROID -->
-  <div class="card">
-    <div class="card-header">
-      <h3><i class="fab fa-android" style="color:#3ddc84;margin-right:8px"></i>Android (Chrome)</h3>
-    </div>
-    <div class="card-body">
-      <div class="install-steps">
+    <!-- ANDROID -->
+    <div class="install-accordion-item" data-platform="android">
+      <button type="button" class="install-accordion-trigger" aria-expanded="false">
+        <i class="fab fa-android" style="color:#3ddc84"></i>
+        <h3>Android (Chrome)</h3>
+        <i class="fas fa-chevron-down chevron"></i>
+      </button>
+      <div class="install-accordion-panel">
+        <div class="install-accordion-panel-inner">
+          <div class="install-steps">
 
-        <div class="install-step">
-          <div class="install-step-num">1</div>
-          <div class="install-step-body">
-            <p>Dotknij ikony <strong>trzech kropek (⋮)</strong> w prawym górnym rogu ekranu.</p>
-            <div class="screenshot-placeholder">
-              <i class="fas fa-camera"></i>
-              Miejsce na screenshot<br>Krok 1 — menu ⋮ (prawy górny róg)
+            <div class="install-step">
+              <div class="install-step-num">1</div>
+              <div class="install-step-body">
+                <p>Dotknij ikony <strong>trzech kropek (⋮)</strong> w prawym górnym rogu ekranu.</p>
+                <div class="install-screenshot-wrap">
+                  <div class="screenshot-placeholder"><i class="fas fa-camera"></i>Ładowanie…</div>
+                  <img class="install-screenshot" data-src="{{ url_for('static', filename='img/android-1.png') }}"
+                       alt="Krok 1 — menu ⋮ na Androidzie" style="display:none">
+                </div>
+              </div>
             </div>
+
+            <div class="install-step">
+              <div class="install-step-num">2</div>
+              <div class="install-step-body">
+                <p>Z menu wybierz <strong>„Zainstaluj aplikację”</strong> (na niektórych telefonach schowane pod <strong>„Utwórz skrót”</strong>).</p>
+                <div class="install-screenshot-wrap">
+                  <div class="screenshot-placeholder"><i class="fas fa-camera"></i>Ładowanie…</div>
+                  <img class="install-screenshot" data-src="{{ url_for('static', filename='img/android-2.png') }}"
+                       alt="Krok 2 — „Zainstaluj aplikację” / „Utwórz skrót”" style="display:none">
+                </div>
+              </div>
+            </div>
+
+            <div class="install-step">
+              <div class="install-step-num">3</div>
+              <div class="install-step-body">
+                <p>Potwierdź przyciskiem <strong>„Zainstaluj: Koloseum”</strong>. Ikona wyląduje na ekranie głównym / w szufladzie aplikacji.</p>
+                <div class="install-screenshot-wrap">
+                  <div class="screenshot-placeholder"><i class="fas fa-camera"></i>Ładowanie…</div>
+                  <img class="install-screenshot" data-src="{{ url_for('static', filename='img/android-3.png') }}"
+                       alt="Krok 3 — „Zainstaluj: Koloseum”" style="display:none">
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
-
-        <div class="install-step">
-          <div class="install-step-num">2</div>
-          <div class="install-step-body">
-            <p>Z menu wybierz <strong>„Zainstaluj aplikację”</strong> (na niektórych telefonach schowane pod <strong>„Utwórz skrót”</strong>).</p>
-            <div class="screenshot-placeholder">
-              <i class="fas fa-camera"></i>
-              Miejsce na screenshot<br>Krok 2 — „Zainstaluj aplikację” / „Utwórz skrót”
-            </div>
-          </div>
-        </div>
-
-        <div class="install-step">
-          <div class="install-step-num">3</div>
-          <div class="install-step-body">
-            <p>Potwierdź przyciskiem <strong>„Zainstaluj: Koloseum”</strong>. Ikona wyląduje na ekranie głównym / w szufladzie aplikacji.</p>
-            <div class="screenshot-placeholder">
-              <i class="fas fa-camera"></i>
-              Miejsce na screenshot<br>Krok 3 — „Zainstaluj: Koloseum”
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
-  </div>
 
-  <!-- iOS -->
-  <div class="card">
-    <div class="card-header">
-      <h3><i class="fab fa-apple" style="margin-right:8px"></i>iPhone / iPad (Safari)</h3>
-    </div>
-    <div class="card-body">
-      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:14px">
-        Musi być otwarte w <strong>Safari</strong> — Chrome na iOS nie ma opcji dodania do ekranu głównego.
-      </p>
-      <div class="install-steps">
+    <!-- iOS -->
+    <div class="install-accordion-item" data-platform="ios">
+      <button type="button" class="install-accordion-trigger" aria-expanded="false">
+        <i class="fab fa-apple"></i>
+        <h3>iPhone / iPad (Safari)</h3>
+        <i class="fas fa-chevron-down chevron"></i>
+      </button>
+      <div class="install-accordion-panel">
+        <div class="install-accordion-panel-inner">
+          <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:14px">
+            Musi być otwarte w <strong>Safari</strong> — Chrome na iOS nie ma opcji dodania do ekranu głównego.
+          </p>
+          <div class="install-steps">
 
-        <div class="install-step">
-          <div class="install-step-num">1</div>
-          <div class="install-step-body">
-            <p>Dotknij ikony <strong>trzech kropek (⋯)</strong> w prawym dolnym rogu ekranu (obok pola adresu).</p>
-            <div class="screenshot-placeholder">
-              <i class="fas fa-camera"></i>
-              Miejsce na screenshot<br>Krok 1 — menu ⋯ (prawy dolny róg)
+            <div class="install-step">
+              <div class="install-step-num">1</div>
+              <div class="install-step-body">
+                <p>Dotknij ikony <strong>trzech kropek (⋯)</strong> w prawym dolnym rogu ekranu (obok pola adresu).</p>
+                <div class="install-screenshot-wrap">
+                  <div class="screenshot-placeholder"><i class="fas fa-camera"></i>Ładowanie…</div>
+                  <img class="install-screenshot" data-src="{{ url_for('static', filename='img/ios-1.png') }}"
+                       alt="Krok 1 — menu ⋯ w Safari" style="display:none">
+                </div>
+              </div>
             </div>
+
+            <div class="install-step">
+              <div class="install-step-num">2</div>
+              <div class="install-step-body">
+                <p>Wybierz <strong>„Udostępnij”</strong> <i class="fas fa-arrow-up-from-bracket"></i>.</p>
+                <div class="install-screenshot-wrap">
+                  <div class="screenshot-placeholder"><i class="fas fa-camera"></i>Ładowanie…</div>
+                  <img class="install-screenshot" data-src="{{ url_for('static', filename='img/ios-2.png') }}"
+                       alt="Krok 2 — „Udostępnij”" style="display:none">
+                </div>
+              </div>
+            </div>
+
+            <div class="install-step">
+              <div class="install-step-num">3</div>
+              <div class="install-step-body">
+                <p>Z listy opcji wybierz <strong>„Do ekranu głównego”</strong> i potwierdź <strong>„Dodaj”</strong> w prawym górnym rogu.</p>
+                <div class="install-screenshot-wrap">
+                  <div class="screenshot-placeholder"><i class="fas fa-camera"></i>Ładowanie…</div>
+                  <img class="install-screenshot" data-src="{{ url_for('static', filename='img/ios-3.png') }}"
+                       alt="Krok 3 — „Do ekranu głównego”" style="display:none">
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
-
-        <div class="install-step">
-          <div class="install-step-num">2</div>
-          <div class="install-step-body">
-            <p>Wybierz <strong>„Udostępnij”</strong> <i class="fas fa-arrow-up-from-bracket"></i>.</p>
-            <div class="screenshot-placeholder">
-              <i class="fas fa-camera"></i>
-              Miejsce na screenshot<br>Krok 2 — „Udostępnij”
-            </div>
-          </div>
-        </div>
-
-        <div class="install-step">
-          <div class="install-step-num">3</div>
-          <div class="install-step-body">
-            <p>Z listy opcji wybierz <strong>„Do ekranu głównego”</strong> i potwierdź <strong>„Dodaj”</strong> w prawym górnym rogu.</p>
-            <div class="screenshot-placeholder">
-              <i class="fas fa-camera"></i>
-              Miejsce na screenshot<br>Krok 3 — „Do ekranu głównego”
-            </div>
-          </div>
-        </div>
-
       </div>
     </div>
-  </div>
 
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Akordeon instalacji: tylko jedna platforma rozwinięta naraz, a screeny
+// (static/img/{web,android,ios}-N.png) są ładowane dopiero przy pierwszym
+// rozwinięciu danej sekcji — dzięki temu przy wejściu na stronę przeglądarka
+// nie pobiera od razu wszystkich 9 zdjęć, tylko te z platformy, którą user
+// faktycznie otworzy.
+(function () {
+  const accordion = document.getElementById("install-accordion");
+  if (!accordion) return;
+
+  const items = accordion.querySelectorAll(".install-accordion-item");
+
+  function loadImagesFor(item) {
+    if (item.dataset.loaded === "1") return;
+    item.dataset.loaded = "1";
+    item.querySelectorAll(".install-screenshot").forEach(function (img) {
+      const src = img.getAttribute("data-src");
+      if (!src) return;
+      const wrap = img.closest(".install-screenshot-wrap");
+      const placeholder = wrap ? wrap.querySelector(".screenshot-placeholder") : null;
+      img.onload = function () {
+        img.style.display = "block";
+        if (placeholder) placeholder.style.display = "none";
+      };
+      img.onerror = function () {
+        if (placeholder) {
+          placeholder.innerHTML = '<i class="fas fa-image"></i>Nie udało się wczytać screenshotu';
+        }
+      };
+      img.src = src;
+    });
+  }
+
+  items.forEach(function (item) {
+    const trigger = item.querySelector(".install-accordion-trigger");
+    trigger.addEventListener("click", function () {
+      const willOpen = !item.classList.contains("open");
+
+      // zamykamy wszystkie pozostałe (rozwinięta jest zawsze tylko jedna)
+      items.forEach(function (other) {
+        if (other !== item) {
+          other.classList.remove("open");
+          other.querySelector(".install-accordion-trigger").setAttribute("aria-expanded", "false");
+        }
+      });
+
+      item.classList.toggle("open", willOpen);
+      trigger.setAttribute("aria-expanded", willOpen ? "true" : "false");
+
+      if (willOpen) {
+        loadImagesFor(item);
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}
