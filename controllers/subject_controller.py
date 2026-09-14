@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, send_from_directory, current_app
+from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, send_from_directory, current_app, jsonify
 from flask_login import login_required, current_user
 from models import Subject, Exam, ChatMessage, ChatAttachment, StudyMaterial, RoomMember, db
 from services.room_service import RoomService
 from services.exam_service import ExamService
 from services.file_service import FileService
+from services import filevault_client
 from utils.timezone import to_utc, utc_now
 from datetime import datetime
 import os
@@ -244,6 +245,50 @@ def delete_material(subject_id: int, material_id: int):
     FileService.delete_material(material)
     flash("Materiał usunięty.", "success")
     return redirect(url_for("subjects.subject_detail", subject_id=subject_id) + "#materials")
+
+
+@subject_bp.route("/subjects/<int:subject_id>/filevault/browse")
+@login_required
+def filevault_browse(subject_id: int):
+    """AJAX: zwraca ostatnie pliki i udostępnione foldery zalogowanego usera
+    z jego konta FileVault — dane do panelu 'Wybierz z FileVault'."""
+    subject = get_subject_or_404(subject_id)
+    require_subject_access(subject)
+    if not current_user.filevault_api_token:
+        return jsonify({"error": "no_token"}), 400
+    data = filevault_client.browse(current_user.filevault_api_token)
+    if data is None:
+        return jsonify({"error": "unavailable"}), 502
+    return jsonify(data)
+
+
+@subject_bp.route("/subjects/<int:subject_id>/filevault/quick-share-file/<int:file_id>", methods=["POST"])
+@login_required
+def filevault_quick_share_file(subject_id: int, file_id: int):
+    """AJAX: udostępnia (jeśli trzeba) wybrany plik z FileVault i zwraca link,
+    żeby od razu wypełnić nim formularz dodawania materiału."""
+    subject = get_subject_or_404(subject_id)
+    require_subject_access(subject)
+    if not current_user.filevault_api_token:
+        return jsonify({"error": "no_token"}), 400
+    share_url = filevault_client.quick_share_file(current_user.filevault_api_token, file_id)
+    if not share_url:
+        return jsonify({"error": "failed"}), 502
+    return jsonify({"share_url": share_url})
+
+
+@subject_bp.route("/subjects/<int:subject_id>/filevault/quick-share-folder/<int:folder_id>", methods=["POST"])
+@login_required
+def filevault_quick_share_folder(subject_id: int, folder_id: int):
+    """AJAX: udostępnia (jeśli trzeba) wybrany folder z FileVault i zwraca link."""
+    subject = get_subject_or_404(subject_id)
+    require_subject_access(subject)
+    if not current_user.filevault_api_token:
+        return jsonify({"error": "no_token"}), 400
+    share_url = filevault_client.quick_share_folder(current_user.filevault_api_token, folder_id)
+    if not share_url:
+        return jsonify({"error": "failed"}), 502
+    return jsonify({"share_url": share_url})
 
 
 @subject_bp.route("/subjects/<int:subject_id>/filevault-folder", methods=["POST"])

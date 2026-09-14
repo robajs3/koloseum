@@ -32,6 +32,12 @@ class User(UserMixin, db.Model):
     # Push subscription
     push_subscription = db.Column(db.Text, nullable=True)
 
+    # Token API konta FileVault tego użytkownika (wklejony ręcznie z panelu
+    # FileVault -> Profil -> "Token API"). Pozwala Koloseum pytać FileVault
+    # w jego imieniu o ostatnie pliki / udostępnione foldery (patrz
+    # services/filevault_client.py) bez trzymania haseł.
+    filevault_api_token = db.Column(db.String(128), nullable=True)
+
     # Relationships
     room_memberships = db.relationship("RoomMember", back_populates="user", cascade="all, delete-orphan")
     messages = db.relationship("ChatMessage", back_populates="author", cascade="all, delete-orphan")

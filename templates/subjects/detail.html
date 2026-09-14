@@ -17,12 +17,28 @@
     </div>
   </div>
   {% if subject.filevault_folder_url %}
-  <a href="{{ subject.filevault_folder_url }}" target="_blank" class="btn btn-ghost">
-    <i class="fas fa-hdd"></i> Folder FileVault
-    <i class="fas fa-external-link-alt" style="font-size:.65rem"></i>
-  </a>
+  <div style="display:flex;gap:8px">
+    <button type="button" class="btn btn-ghost" onclick="toggleFolderPreview()">
+      <i class="fas fa-eye"></i> Podgląd folderu
+    </button>
+    <a href="{{ subject.filevault_folder_url }}" target="_blank" class="btn btn-ghost">
+      <i class="fas fa-hdd"></i> Folder FileVault
+      <i class="fas fa-external-link-alt" style="font-size:.65rem"></i>
+    </a>
+  </div>
   {% endif %}
 </div>
+
+{% if subject.filevault_folder_url %}
+<div id="folder-preview-box" style="display:none;margin-bottom:20px">
+  <div class="card">
+    <div class="card-body" style="padding:0">
+      <iframe id="folder-preview-frame" src="" title="Podgląd folderu FileVault"
+              style="width:100%;height:480px;border:0;border-radius:var(--radius-sm);display:block"></iframe>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <!-- Tabs -->
 <div style="display:flex;gap:4px;margin-bottom:20px;border-bottom:2px solid var(--border);padding-bottom:0">
@@ -268,7 +284,7 @@
             enctype="multipart/form-data">
         <div class="form-group">
           <label class="form-label">Tytuł *</label>
-          <input type="text" name="title" class="form-control" placeholder="np. Notatki z wykładu 3" required maxlength="256">
+          <input type="text" name="title" id="material-title" class="form-control" placeholder="np. Notatki z wykładu 3" required maxlength="256">
         </div>
         <div class="form-group">
           <label class="form-label">Opis</label>
@@ -283,7 +299,14 @@
         </div>
         <div class="form-group">
           <label class="form-label">Lub link FileVault</label>
-          <input type="text" name="filevault_link" class="form-control" placeholder="https://…/filevault/share/…">
+          <div style="display:flex;gap:8px">
+            <input type="text" name="filevault_link" id="material-filevault-link" class="form-control"
+                   placeholder="https://…/filevault/share/…">
+            <button type="button" class="btn btn-ghost btn-sm" style="flex-shrink:0"
+                    onclick="openFilevaultPanel('material')">
+              <i class="fas fa-hdd"></i> Wybierz z FileVault
+            </button>
+          </div>
         </div>
         <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-upload"></i> Dodaj</button>
       </form>
@@ -421,16 +444,52 @@
     <div class="card-header"><h4><i class="fas fa-hdd" style="color:var(--secondary);margin-right:6px"></i>Folder FileVault</h4></div>
     <div class="card-body">
       <form method="POST" action="{{ url_for('subjects.set_filevault_folder', subject_id=subject.id) }}">
-        <div class="form-group">
-          <input type="text" name="filevault_folder_url" class="form-control"
+        <div class="form-group" style="display:flex;gap:8px">
+          <input type="text" name="filevault_folder_url" id="folder-filevault-link" class="form-control"
                  value="{{ subject.filevault_folder_url or '' }}"
                  placeholder="https://…/filevault/shared-folder/…">
+          <button type="button" class="btn btn-ghost btn-sm" style="flex-shrink:0"
+                  onclick="openFilevaultPanel('folder')">
+            <i class="fas fa-hdd"></i> Wybierz z FileVault
+          </button>
         </div>
         <button type="submit" class="btn btn-secondary btn-sm"><i class="fas fa-link"></i> Zapisz folder</button>
       </form>
     </div>
   </div>
   {% endif %}
+</div>
+
+<!-- ===== PANEL "WYBIERZ Z FILEVAULT" ===== -->
+<div id="filevault-panel-modal" style="display:none;position:fixed;inset:0;z-index:1000;
+     background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:16px">
+  <div class="card" style="width:100%;max-width:520px;max-height:85vh;display:flex;flex-direction:column">
+    <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+      <h4 style="margin:0"><i class="fas fa-hdd" style="color:var(--secondary);margin-right:6px"></i>Wybierz z FileVault</h4>
+      <button type="button" onclick="closeFilevaultPanel()" class="btn btn-ghost btn-sm" style="padding:4px 8px">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div style="display:flex;gap:4px;padding:0 16px;border-bottom:2px solid var(--border)">
+      <button type="button" class="fv-tab-btn" id="fv-tab-files" onclick="switchFvTab('files')"
+              style="padding:8px 14px;border:none;background:none;cursor:pointer;font-size:.85rem;
+                     font-weight:600;color:var(--primary);border-bottom:2px solid var(--primary);margin-bottom:-2px">
+        <i class="fas fa-file" style="margin-right:5px"></i>Ostatnie pliki
+      </button>
+      <button type="button" class="fv-tab-btn" id="fv-tab-folders" onclick="switchFvTab('folders')"
+              style="padding:8px 14px;border:none;background:none;cursor:pointer;font-size:.85rem;
+                     font-weight:500;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px">
+        <i class="fas fa-folder" style="margin-right:5px"></i>Udostępnione foldery
+      </button>
+    </div>
+
+    <div class="card-body" id="filevault-panel-body" style="overflow-y:auto;flex:1;min-height:200px">
+      <div style="text-align:center;color:var(--text-muted);padding:30px 0">
+        <i class="fas fa-spinner fa-spin"></i> Ładowanie…
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ===== MODAL PODGLĄDU ===== -->
@@ -497,6 +556,210 @@ else switchTab('exams');
 
 const chatBox = document.getElementById('chat-box');
 if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+/* ===== PODGLĄD FOLDERU FILEVAULT (iframe inline) ===== */
+function toggleFolderPreview() {
+  const box = document.getElementById('folder-preview-box');
+  if (!box) return;
+  const frame = document.getElementById('folder-preview-frame');
+  const willShow = box.style.display === 'none';
+  if (willShow && !frame.src) {
+    frame.src = {{ subject.filevault_folder_url|tojson }};
+  }
+  box.style.display = willShow ? '' : 'none';
+  if (willShow) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* ===== PANEL "WYBIERZ Z FILEVAULT" ===== */
+const FV_BROWSE_URL = "{{ url_for('subjects.filevault_browse', subject_id=subject.id) }}";
+const FV_QUICK_SHARE_FILE_URL_TPL = "{{ url_for('subjects.filevault_quick_share_file', subject_id=subject.id, file_id=0) }}";
+const FV_QUICK_SHARE_FOLDER_URL_TPL = "{{ url_for('subjects.filevault_quick_share_folder', subject_id=subject.id, folder_id=0) }}";
+const FV_PROFILE_URL = "{{ url_for('profile.profile') }}";
+
+let fvTarget = null;   // 'material' albo 'folder' — do którego pola wpisujemy wybrany link
+let fvData = null;     // odpowiedź /filevault/browse (cache na czas otwarcia panelu)
+let fvActiveTab = 'files';
+
+function openFilevaultPanel(target) {
+  fvTarget = target;
+  fvData = null;
+  switchFvTab('files');
+  document.getElementById('filevault-panel-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  const body = document.getElementById('filevault-panel-body');
+  body.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:30px 0"><i class="fas fa-spinner fa-spin"></i> Ładowanie…</div>';
+
+  fetch(FV_BROWSE_URL)
+    .then(r => r.json().then(data => ({ status: r.status, data })))
+    .then(({ status, data }) => {
+      if (status === 400 && data.error === 'no_token') {
+        body.innerHTML = `<div style="text-align:center;padding:20px 10px">
+          <i class="fas fa-plug" style="font-size:1.6rem;color:var(--text-muted);margin-bottom:10px;display:block"></i>
+          <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:14px">
+            Nie masz jeszcze połączonego konta FileVault.
+          </p>
+          <a href="${FV_PROFILE_URL}" class="btn btn-primary btn-sm">Połącz w profilu</a>
+        </div>`;
+        return;
+      }
+      if (status !== 200) {
+        body.innerHTML = `<div style="text-align:center;padding:20px 10px;color:var(--danger)">
+          FileVault jest chwilowo niedostępny. Spróbuj ponownie za chwilę.
+        </div>`;
+        return;
+      }
+      fvData = data;
+      renderFvTab();
+    })
+    .catch(() => {
+      body.innerHTML = `<div style="text-align:center;padding:20px 10px;color:var(--danger)">
+        Błąd połączenia z FileVault.
+      </div>`;
+    });
+}
+
+function closeFilevaultPanel() {
+  document.getElementById('filevault-panel-modal').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+document.getElementById('filevault-panel-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeFilevaultPanel();
+});
+
+function switchFvTab(tab) {
+  fvActiveTab = tab;
+  ['files', 'folders'].forEach(t => {
+    const btn = document.getElementById('fv-tab-' + t);
+    btn.style.color = t === tab ? 'var(--primary)' : 'var(--text-muted)';
+    btn.style.borderBottomColor = t === tab ? 'var(--primary)' : 'transparent';
+    btn.style.fontWeight = t === tab ? '600' : '500';
+  });
+  if (fvData) renderFvTab();
+}
+
+function fvFileIcon(ext) {
+  if (['png','jpg','jpeg','gif','webp','svg'].includes(ext)) return 'fa-file-image';
+  if (ext === 'pdf') return 'fa-file-pdf';
+  if (['mp4','webm','ogg','mov'].includes(ext)) return 'fa-file-video';
+  if (['mp3','wav'].includes(ext)) return 'fa-file-audio';
+  if (['zip','rar','7z'].includes(ext)) return 'fa-file-zipper';
+  return 'fa-file';
+}
+
+function renderFvTab() {
+  const body = document.getElementById('filevault-panel-body');
+  const items = fvActiveTab === 'files' ? (fvData.recent_files || []) : (fvData.shared_folders || []);
+
+  if (!items.length) {
+    const msg = fvActiveTab === 'files'
+      ? 'Brak plików w FileVault.'
+      : 'Nie masz jeszcze udostępnionych folderów. Możesz udostępnić dowolny folder z poziomu FileVault, albo wybrać go stąd — link zostanie utworzony automatycznie.';
+    body.innerHTML = `<div class="empty-state" style="padding:20px 0"><div class="empty-icon">📂</div><p style="font-size:.85rem">${msg}</p></div>`;
+    if (fvActiveTab === 'folders' && fvData.all_folders && fvData.all_folders.length) {
+      body.innerHTML += renderFvList(fvData.all_folders, 'folder');
+    }
+    return;
+  }
+
+  body.innerHTML = renderFvList(items, fvActiveTab === 'files' ? 'file' : 'folder');
+}
+
+function fvEscapeAttr(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+function fvEscapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderFvList(items, kind) {
+  return '<div style="display:flex;flex-direction:column;gap:2px">' + items.map(item => {
+    if (kind === 'file') {
+      const icon = fvFileIcon(item.extension || '');
+      const badge = item.share_active
+        ? '<span style="font-size:.68rem;color:var(--success)"><i class="fas fa-link"></i> udostępniony</span>'
+        : '<span style="font-size:.68rem;color:var(--text-muted)">nieudostępniony — zostanie udostępniony</span>';
+      return `<div class="fv-item" data-kind="file" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}"
+                   style="display:flex;align-items:center;gap:10px;padding:9px 6px;border-radius:8px;cursor:pointer">
+        <i class="fas ${icon}" style="width:22px;text-align:center;color:var(--primary)"></i>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.85rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fvEscapeHtml(item.name)}</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span style="font-size:.72rem;color:var(--text-muted)">${item.size_human}</span>${badge}
+          </div>
+        </div>
+        <i class="fas fa-chevron-right" style="color:var(--text-muted);font-size:.75rem"></i>
+      </div>`;
+    }
+    const badge = item.share_active
+      ? '<span style="font-size:.68rem;color:var(--success)"><i class="fas fa-link"></i> udostępniony</span>'
+      : '<span style="font-size:.68rem;color:var(--text-muted)">zostanie udostępniony</span>';
+    return `<div class="fv-item" data-kind="folder" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}"
+                 style="display:flex;align-items:center;gap:10px;padding:9px 6px;border-radius:8px;cursor:pointer">
+      <i class="fas fa-folder" style="width:22px;text-align:center;color:var(--secondary)"></i>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.85rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${fvEscapeHtml(item.full_path)}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:.72rem;color:var(--text-muted)">${item.file_count} plik(ów)</span>${badge}
+        </div>
+      </div>
+      <i class="fas fa-chevron-right" style="color:var(--text-muted);font-size:.75rem"></i>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+// Delegacja kliknięć — bezpieczniejsza niż inline onclick z nazwami plików
+// (nazwy mogą zawierać cudzysłowy itp.)
+document.getElementById('filevault-panel-body').addEventListener('click', function(e) {
+  const row = e.target.closest('.fv-item');
+  if (!row) return;
+  const id = parseInt(row.dataset.id, 10);
+  const name = row.dataset.name;
+  if (row.dataset.kind === 'file') pickFvFile(id, name);
+  else pickFvFolder(id, name);
+});
+document.getElementById('filevault-panel-body').addEventListener('mouseover', e => {
+  const row = e.target.closest('.fv-item');
+  if (row) row.style.background = 'var(--primary-light)';
+});
+document.getElementById('filevault-panel-body').addEventListener('mouseout', e => {
+  const row = e.target.closest('.fv-item');
+  if (row) row.style.background = '';
+});
+
+function pickFvFile(fileId, fileName) {
+  const url = FV_QUICK_SHARE_FILE_URL_TPL.replace(/\/0$/, '/' + fileId);
+  fetch(url, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.share_url) { alert('Nie udało się udostępnić pliku.'); return; }
+      const inputId = fvTarget === 'folder' ? 'folder-filevault-link' : 'material-filevault-link';
+      document.getElementById(inputId).value = data.share_url;
+      const titleInput = document.getElementById('material-title');
+      if (fvTarget !== 'folder' && titleInput && !titleInput.value) titleInput.value = fileName;
+      closeFilevaultPanel();
+    })
+    .catch(() => alert('Błąd połączenia z FileVault.'));
+}
+
+function pickFvFolder(folderId, folderName) {
+  const url = FV_QUICK_SHARE_FOLDER_URL_TPL.replace(/\/0$/, '/' + folderId);
+  fetch(url, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.share_url) { alert('Nie udało się udostępnić folderu.'); return; }
+      if (fvTarget === 'folder') {
+        document.getElementById('folder-filevault-link').value = data.share_url;
+      } else {
+        document.getElementById('material-filevault-link').value = data.share_url;
+        const titleInput = document.getElementById('material-title');
+        if (titleInput && !titleInput.value) titleInput.value = folderName;
+      }
+      closeFilevaultPanel();
+    })
+    .catch(() => alert('Błąd połączenia z FileVault.'));
+}
 
 /* ===== PODGLĄD PLIKÓW ===== */
 let currentPreviewUrl = null;

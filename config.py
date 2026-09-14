@@ -21,6 +21,12 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     REDIS_URL = os.getenv("REDIS_URL")
     FILEVAULT_BASE_URL = os.getenv("FILEVAULT_BASE_URL")
+    # Adres, pod którym Koloseum (backend) woła API FileVault po sieci
+    # wewnętrznej (nie przez przeglądarkę) — analogicznie do HUB_INTERNAL_URL
+    # dla LoginHub. Jeśli obie appki stoją na tym samym serwerze za nginx,
+    # zwykle wystarczy adres lokalny FileVault (np. http://127.0.0.1:5002
+    # albo http://filevault-web:5000 w sieci sso_net przy Dockerze).
+    FILEVAULT_INTERNAL_URL = os.getenv("FILEVAULT_INTERNAL_URL", "http://127.0.0.1:5000")
     VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY")
     VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
     VAPID_CLAIMS_EMAIL = os.getenv("VAPID_CLAIMS_EMAIL")

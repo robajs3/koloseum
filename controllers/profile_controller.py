@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from models import db
 from services.auth_service import AuthService
 from services.notification_service import NotificationService
+from services import filevault_client
 
 profile_bp = Blueprint("profile", __name__)
 
@@ -12,6 +13,31 @@ profile_bp = Blueprint("profile", __name__)
 def profile():
     return render_template("profile/profile.html",
                            filevault_url=current_app.config.get("FILEVAULT_BASE_URL", ""))
+
+
+@profile_bp.route("/profile/filevault-token", methods=["POST"])
+@login_required
+def set_filevault_token():
+    """Zapisuje (albo usuwa) token API FileVault wklejony przez usera.
+    Token jest od razu weryfikowany wywołaniem /filevault/api/verify, żeby
+    nie zapisać literówki i pokazać z jakim kontem FileVault się łączymy."""
+    token = request.form.get("filevault_api_token", "").strip()
+
+    if not token:
+        current_user.filevault_api_token = None
+        db.session.commit()
+        flash("Odłączono konto FileVault.", "info")
+        return redirect(url_for("profile.profile"))
+
+    info = filevault_client.verify_token(token)
+    if not info:
+        flash("Nieprawidłowy token albo FileVault jest chwilowo niedostępny.", "danger")
+        return redirect(url_for("profile.profile"))
+
+    current_user.filevault_api_token = token
+    db.session.commit()
+    flash(f"Połączono z kontem FileVault: {info.get('username')}.", "success")
+    return redirect(url_for("profile.profile"))
 
 
 @profile_bp.route("/pomoc/instalacja")
