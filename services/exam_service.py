@@ -1,6 +1,7 @@
 from models import db, Exam, Subject, RoomMember, User, Notification
 from datetime import datetime, timedelta
 from services.notification_service import NotificationService
+from utils.timezone import to_local, to_utc, utc_now
 
 class ExamService:
     @staticmethod
@@ -29,7 +30,7 @@ class ExamService:
         exam.exam_date = exam_date
         exam.location = location
         exam.exam_type = exam_type
-        exam.updated_at = datetime.utcnow()
+        exam.updated_at = utc_now()
         db.session.commit()
         return exam
 
@@ -44,7 +45,7 @@ class ExamService:
         room_ids = [m.room_id for m in memberships]
         subjects = Subject.query.filter(Subject.room_id.in_(room_ids)).all()
         subject_ids = [s.id for s in subjects]
-        now = datetime.utcnow()
+        now = utc_now()
         until = now + timedelta(days=days)
         return (
             Exam.query
@@ -76,11 +77,14 @@ class ExamService:
         room_ids = [m.room_id for m in memberships]
         subjects = Subject.query.filter(Subject.room_id.in_(room_ids)).all()
         subject_ids = [s.id for s in subjects]
-        from datetime import date
         import calendar as cal_module
         _, last_day = cal_module.monthrange(year, month)
-        start = datetime(year, month, 1)
-        end = datetime(year, month, last_day, 23, 59, 59)
+        # Granice miesiąca liczymy w czasie lokalnym (tak jak widzi je user
+        # w kalendarzu), a dopiero potem zamieniamy na UTC do zapytania —
+        # inaczej egzaminy z pierwszych/ostatnich godzin miesiąca (przy
+        # różnicy stref) mogłyby wypaść z/wpaść do sąsiedniego miesiąca.
+        start = to_utc(datetime(year, month, 1))
+        end = to_utc(datetime(year, month, last_day, 23, 59, 59))
         exams = (
             Exam.query
             .filter(Exam.subject_id.in_(subject_ids))
@@ -90,11 +94,12 @@ class ExamService:
         )
         events = []
         for e in exams:
+            local_date = to_local(e.exam_date)
             events.append({
                 "id": e.id,
                 "title": e.title,
-                "date": e.exam_date.strftime("%Y-%m-%d"),
-                "time": e.exam_date.strftime("%H:%M"),
+                "date": local_date.strftime("%Y-%m-%d"),
+                "time": local_date.strftime("%H:%M"),
                 "type": e.exam_type,
                 "subject": e.subject.name,
                 "subject_id": e.subject.id,      # <-- dodane

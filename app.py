@@ -6,6 +6,7 @@ from flask_login import LoginManager, current_user, login_user
 from config import Config
 from models import db, User
 from controllers import auth_bp, dashboard_bp, room_bp, subject_bp, profile_bp, notification_bp, admin_bp, export_api_bp
+from utils.timezone import to_local
 import sso_client
 
 
@@ -49,6 +50,11 @@ def create_app(config_class=Config) -> Flask:
 
     # Extensions
     db.init_app(app)
+
+    # Filtr Jinja do konwersji dat z bazy (UTC) na czas lokalny przy
+    # wyświetlaniu — patrz utils/timezone.py. Użycie w szablonach:
+    # {{ (obj.created_at|localtime).strftime('%H:%M') }}
+    app.jinja_env.filters["localtime"] = to_local
 
     login_manager = LoginManager()
     login_manager.init_app(app)
@@ -192,6 +198,11 @@ def init_db(app: Flask) -> None:
         os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
         os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "chat"), exist_ok=True)
         os.makedirs(os.path.join(app.config["UPLOAD_FOLDER"], "materials"), exist_ok=True)
+
+    # Wątek w tle do przypomnień "godzinę przed" / "X dni przed" — patrz
+    # services/scheduler.py (bezpieczny nawet przy kilku workerach gunicorna).
+    from services.scheduler import start_reminder_scheduler
+    start_reminder_scheduler(app)
 
 
 def create_wsgi_app(config_class=Config):

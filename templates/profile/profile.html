@@ -65,42 +65,17 @@
     </div>
   </div>
 
-  <!-- Notifications -->
+  <!-- Notifications: ustawienia przeniesione do panelu Powiadomień -->
   <div class="card">
     <div class="card-header"><h3><i class="fas fa-bell" style="color:var(--warning);margin-right:8px"></i>Powiadomienia</h3></div>
     <div class="card-body">
-      <form method="POST" action="{{ url_for('profile.update_notifications') }}">
-        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
-          {% for name, label in [
-            ('notifications_enabled','Włącz powiadomienia'),
-            ('notify_new_exam','Nowy termin w przedmiocie'),
-            ('notify_exam_reminder','Przypomnienie przed terminem'),
-            ('notify_chat_message','Nowa wiadomość czatu')
-          ] %}
-          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.88rem">
-            <input type="checkbox" name="{{ name }}"
-                   {% if current_user|attr(name) %}checked{% endif %}
-                   style="width:16px;height:16px">
-            {{ label }}
-          </label>
-          {% endfor %}
-        </div>
-        <div class="form-group">
-          <label class="form-label">Przypomnij na X dni przed terminem</label>
-          <input type="number" name="notify_days_before" class="form-control"
-                 value="{{ current_user.notify_days_before }}" min="1" max="30"
-                 style="width:100px">
-        </div>
-        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Zapisz</button>
-        <button type="button" class="btn btn-primary" onclick="setupPushNotifications()">
-          <i class="fas fa-bell"></i> Włącz powiadomienia push
-        </button>
-        <p class="text-muted" style="font-size:.78rem;margin-top:8px">
-          Na iPhonie/iPadzie: otwórz tę stronę w Safari, dotknij <i class="fas fa-arrow-up-from-bracket"></i> Udostępnij →
-          „Dodaj do ekranu początkowego”, a następnie włącz powiadomienia z appki uruchomionej z tej ikony.
-          Pełna instrukcja instalacji (Android + iOS): <a href="{{ url_for('profile.install_app') }}">zobacz tutaj</a>.
-        </p>
-      </form>
+      <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:12px">
+        Ustawienia powiadomień (włączanie push, przypomnienia przed terminem, wyciszanie)
+        znajdziesz teraz w panelu Powiadomień.
+      </p>
+      <a href="{{ url_for('notifications.list_notifications') }}" class="btn btn-primary">
+        <i class="fas fa-sliders-h"></i> Przejdź do ustawień powiadomień
+      </a>
     </div>
   </div>
 

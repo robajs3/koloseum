@@ -25,3 +25,12 @@ class Config:
     VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY")
     VAPID_CLAIMS_EMAIL = os.getenv("VAPID_CLAIMS_EMAIL")
     PREFIX = os.getenv("PREFIX", "/koloseum")
+
+    # Strefa czasowa używana do wyświetlania dat i interpretacji dat
+    # wpisywanych przez userów (patrz utils/timezone.py).
+    TIMEZONE = os.getenv("TIMEZONE", "Europe/Warsaw")
+
+    # Co ile sekund wątek przypominajek (services/scheduler.py) sprawdza
+    # zbliżające się terminy pod kątem powiadomień "godzinę przed" i
+    # "X dni przed".
+    REMINDER_CHECK_INTERVAL = int(os.getenv("REMINDER_CHECK_INTERVAL", "300"))

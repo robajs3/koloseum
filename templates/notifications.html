@@ -3,7 +3,86 @@
 {% block page_title %}Powiadomienia{% endblock %}
 
 {% block content %}
-<div style="max-width:700px;margin:0 auto">
+<div style="max-width:700px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
+
+  <!-- Alert wypełniany przez JS, jeśli user nie zezwolił na powiadomienia przeglądarki -->
+  <div id="notif-permission-alert"></div>
+
+  <!-- Ustawienia powiadomień (przeniesione tutaj z profilu) -->
+  <div class="card">
+    <div class="card-header"><h3><i class="fas fa-sliders-h" style="color:var(--warning);margin-right:8px"></i>Ustawienia powiadomień</h3></div>
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('profile.update_notifications') }}">
+        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+          {% for name, label in [
+            ('notifications_enabled','Włącz powiadomienia'),
+            ('notify_new_exam','Nowy termin w przedmiocie'),
+            ('notify_exam_reminder','Przypomnienie przed terminem (dni)'),
+            ('notify_hour_before','Dodatkowe przypomnienie godzinę przed terminem'),
+            ('notify_chat_message','Nowa wiadomość czatu')
+          ] %}
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:.88rem">
+            <input type="checkbox" name="{{ name }}"
+                   {% if current_user|attr(name) %}checked{% endif %}
+                   style="width:16px;height:16px">
+            {{ label }}
+          </label>
+          {% endfor %}
+        </div>
+        <div class="form-group">
+          <label class="form-label">Przypomnij na X dni przed terminem</label>
+          <input type="number" name="notify_days_before" class="form-control"
+                 value="{{ current_user.notify_days_before }}" min="1" max="30"
+                 style="width:100px">
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Zapisz</button>
+        <button type="button" class="btn btn-primary" onclick="setupPushNotifications()">
+          <i class="fas fa-bell"></i> Włącz powiadomienia push
+        </button>
+        <p class="text-muted" style="font-size:.78rem;margin-top:8px">
+          Na iPhonie/iPadzie: otwórz tę stronę w Safari, dotknij <i class="fas fa-arrow-up-from-bracket"></i> Udostępnij →
+          „Dodaj do ekranu początkowego", a następnie włącz powiadomienia z appki uruchomionej z tej ikony.
+          Pełna instrukcja instalacji (Android + iOS): <a href="{{ url_for('profile.install_app') }}">zobacz tutaj</a>.
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Wycisz powiadomienia na jakiś czas -->
+  <div class="card">
+    <div class="card-header"><h3><i class="fas fa-moon" style="color:var(--secondary);margin-right:8px"></i>Wycisz powiadomienia</h3></div>
+    <div class="card-body">
+      {% if is_muted %}
+      <p style="font-size:.85rem;margin-bottom:12px">
+        <i class="fas fa-volume-mute" style="color:var(--warning);margin-right:6px"></i>
+        Powiadomienia push są wyciszone do
+        <strong>{{ (current_user.muted_until|localtime).strftime('%H:%M, %d.%m.%Y') }}</strong>.
+        Nadal będą widoczne na tej liście, tylko bez push/dźwięku.
+      </p>
+      <form method="POST" action="{{ url_for('notifications.unmute') }}">
+        <button type="submit" class="btn btn-ghost"><i class="fas fa-volume-up"></i> Anuluj wyciszenie</button>
+      </form>
+      {% else %}
+      <form method="POST" action="{{ url_for('notifications.mute') }}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <select name="minutes" class="form-control" style="width:auto">
+          <option value="30">30 minut</option>
+          <option value="60" selected>1 godzina</option>
+          <option value="120">2 godziny</option>
+          <option value="240">4 godziny</option>
+          <option value="480">8 godzin</option>
+          <option value="1440">1 dzień (max)</option>
+        </select>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-volume-mute"></i> Wycisz</button>
+      </form>
+      <p class="text-muted" style="font-size:.78rem;margin-top:8px">
+        Wyciszenie dotyczy tylko powiadomień push — nowe powiadomienia nadal będą się pojawiać na tej liście.
+        Maksymalny czas wyciszenia to 1 dzień.
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Lista powiadomień -->
   <div class="card">
     <div class="card-header">
       <h2><i class="fas fa-bell" style="color:var(--primary);margin-right:8px"></i>Powiadomienia</h2>
@@ -34,7 +113,7 @@
             <div style="font-size:.8rem;color:var(--text-muted);margin-top:2px">{{ n.body }}</div>
             {% endif %}
             <div style="font-size:.72rem;color:var(--text-light);margin-top:4px">
-              {{ n.created_at.strftime('%d.%m.%Y %H:%M') }}
+              {{ (n.created_at|localtime).strftime('%d.%m.%Y %H:%M') }}
             </div>
           </div>
           {% if not n.is_read %}
@@ -57,6 +136,7 @@
       {% endif %}
     </div>
   </div>
+
 </div>
 {% endblock %}
 
@@ -73,5 +153,71 @@ function markAllRead() {
   fetch(`${window.PREFIX}/notifications/read-all`, {method:'POST'})
     .then(() => location.reload());
 }
+
+// Jak tylko wchodzimy na tę stronę: jeśli przeglądarka jeszcze nie
+// pytała o zgodę na powiadomienia, pytamy od razu (setupPushNotifications
+// z app.js samo woła Notification.requestPermission()). Jeśli user
+// wcześniej odmówił (permission === 'denied'), pokazujemy alert na górze
+// strony z instrukcją jak to naprawić — przeglądarki nie pozwalają
+// wywołać promptu ponownie, trzeba to zrobić ręcznie w ustawieniach strony.
+function renderPermissionDeniedAlert() {
+  const box = document.getElementById('notif-permission-alert');
+  if (!box) return;
+  box.innerHTML = `
+    <div class="alert alert-warning" style="display:block">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <i class="fas fa-bell-slash" style="margin-top:2px"></i>
+        <div>
+          <strong>Nie zezwoliłeś na powiadomienia przeglądarki — nie będziesz ich otrzymywać.</strong>
+          <div style="margin-top:6px;font-size:.85rem;line-height:1.5">
+            <strong>Jak to naprawić:</strong>
+            <ol style="margin:6px 0 0 18px;padding:0">
+              <li>Kliknij ikonę kłódki / „i" obok adresu strony w przeglądarce.</li>
+              <li>Wejdź w „Ustawienia witryny" (lub „Uprawnienia") i znajdź „Powiadomienia".</li>
+              <li>Zmień na „Zezwól", a następnie odśwież tę stronę.</li>
+            </ol>
+            Na iPhonie/iPadzie: otwórz tę stronę w Safari, dodaj ją do ekranu głównego
+            (Udostępnij → Dodaj do ekranu początkowego), uruchom appkę z tej ikony
+            i dopiero wtedy włącz powiadomienia.
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  if (!('Notification' in window)) return;
+
+  if (Notification.permission === 'denied') {
+    renderPermissionDeniedAlert();
+    return;
+  }
+
+  if (Notification.permission === 'default') {
+    // Pytamy o zgodę wprost i od razu (niezależnie od tego, czy push
+    // (VAPID/service worker) jest w ogóle skonfigurowany po stronie
+    // serwera) — to jest osobny mechanizm przeglądarki od samej
+    // subskrypcji push.
+    const perm = await Notification.requestPermission();
+    if (perm === 'denied') {
+      renderPermissionDeniedAlert();
+      return;
+    }
+    if (perm === 'granted') {
+      // Zgoda jest, więc dogrywamy resztę (service worker + subskrypcja
+      // push) bez ponownego pytania — setupPushNotifications samo
+      // sprawdzi, że permission już jest 'granted'.
+      setupPushNotifications();
+    }
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    // Zgoda już jest — dbamy tylko, żeby subskrypcja push faktycznie
+    // istniała na serwerze (np. po zmianie przeglądarki/urządzenia).
+    // Nie pokazuje to żadnego promptu, bo permission jest już 'granted'.
+    setupPushNotifications();
+  }
+});
 </script>
 {% endblock %}

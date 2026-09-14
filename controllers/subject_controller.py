@@ -4,6 +4,7 @@ from models import Subject, Exam, ChatMessage, ChatAttachment, StudyMaterial, Ro
 from services.room_service import RoomService
 from services.exam_service import ExamService
 from services.file_service import FileService
+from utils.timezone import to_utc, utc_now
 from datetime import datetime
 import os
 
@@ -71,7 +72,7 @@ def list_subjects():
 def subject_detail(subject_id: int):
     subject = get_subject_or_404(subject_id)
     require_subject_access(subject)
-    now = datetime.utcnow()
+    now = utc_now()
     upcoming_exams = (
         Exam.query.filter_by(subject_id=subject_id)
         .filter(Exam.exam_date >= now)
@@ -120,7 +121,7 @@ def create_exam(subject_id: int):
         flash("Wypełnij wymagane pola.", "danger")
         return redirect(url_for("subjects.subject_detail", subject_id=subject_id))
     try:
-        exam_date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M")
+        exam_date = to_utc(datetime.strptime(date_str, "%Y-%m-%dT%H:%M"))
     except ValueError:
         flash("Nieprawidłowy format daty.", "danger")
         return redirect(url_for("subjects.subject_detail", subject_id=subject_id))

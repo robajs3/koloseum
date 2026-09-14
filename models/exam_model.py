@@ -86,3 +86,22 @@ class Notification(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship("User", back_populates="notifications")
+
+
+class ExamReminderLog(db.Model):
+    """Ślad wysłanych przypomnień 'godzinę przed' / 'X dni przed', żeby
+    wątek przypominajek (services/scheduler.py) nie wysyłał tego samego
+    przypomnienia wielokrotnie (np. przy każdym tiku, albo gdy appka
+    działa na kilku workerach gunicorna naraz — unikalny constraint
+    gwarantuje, że tylko jeden insert się powiedzie)."""
+    __tablename__ = "exam_reminder_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    exam_id = db.Column(db.Integer, db.ForeignKey("exams.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    kind = db.Column(db.String(20), nullable=False)  # "hour" albo "days"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("exam_id", "user_id", "kind", name="uq_exam_reminder_once"),
+    )

@@ -89,13 +89,13 @@
     {% if exam.exam_type=='kolokwium' %}#4f46e5{% elif exam.exam_type=='egzamin' %}#dc2626{% elif exam.exam_type=='kartkówka' %}#d97706{% elif exam.exam_type=='deadline' %}#7c3aed{% else %}#6b7280{% endif %}">
     <div class="card-body" style="display:flex;align-items:center;gap:14px">
       <div style="text-align:center;min-width:48px">
-        <div style="font-size:1.4rem;font-weight:700;line-height:1;color:var(--primary)">{{ exam.exam_date.strftime('%d') }}</div>
-        <div style="font-size:.7rem;color:var(--text-muted)">{{ exam.exam_date.strftime('%b %Y') }}</div>
+        <div style="font-size:1.4rem;font-weight:700;line-height:1;color:var(--primary)">{{ (exam.exam_date|localtime).strftime('%d') }}</div>
+        <div style="font-size:.7rem;color:var(--text-muted)">{{ (exam.exam_date|localtime).strftime('%b %Y') }}</div>
       </div>
       <div style="flex:1">
         <div style="font-weight:600;font-size:.92rem">{{ exam.title }}</div>
         <div style="font-size:.78rem;color:var(--text-muted);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap">
-          <span><i class="fas fa-clock"></i> {{ exam.exam_date.strftime('%H:%M') }}</span>
+          <span><i class="fas fa-clock"></i> {{ (exam.exam_date|localtime).strftime('%H:%M') }}</span>
           {% if exam.location %}<span><i class="fas fa-map-marker-alt"></i> {{ exam.location }}</span>{% endif %}
           <span class="badge badge-{% if exam.exam_type=='egzamin' %}danger{% elif exam.exam_type=='kolokwium' %}primary{% else %}gray{% endif %}">
             {{ exam.exam_type }}
@@ -127,7 +127,7 @@
   <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-radius:8px;
               background:var(--bg-secondary);margin-bottom:6px;opacity:.7">
     <div style="font-size:.78rem;color:var(--text-muted);min-width:80px">
-      {{ exam.exam_date.strftime('%d.%m.%Y') }}
+      {{ (exam.exam_date|localtime).strftime('%d.%m.%Y') }}
     </div>
     <div style="font-size:.85rem;font-weight:500;flex:1">{{ exam.title }}</div>
     <span style="font-size:.7rem;color:var(--text-muted)">{{ exam.exam_type }}</span>
@@ -229,7 +229,7 @@
         {% endfor %}
 
         <div style="font-size:.65rem;opacity:.6;margin-top:3px;text-align:right">
-          {{ msg.created_at.strftime('%H:%M') }}
+          {{ (msg.created_at|localtime).strftime('%H:%M') }}
         </div>
       </div>
     </div>
@@ -362,7 +362,7 @@
           {% endif %}
           <div style="font-size:.7rem;color:var(--text-light);display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">
             <span>{{ mat.uploader.username }}</span>
-            <span>{{ mat.created_at.strftime('%d.%m.%Y') }}</span>
+            <span>{{ (mat.created_at|localtime).strftime('%d.%m.%Y') }}</span>
             {% if not mat.is_filevault_link and mat.file_size %}
             <span>{{ (mat.file_size/1024/1024)|round(1) }} MB</span>
             {% endif %}

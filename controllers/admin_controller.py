@@ -4,6 +4,7 @@ from models import User, Room, db
 from models.announcement_model import Announcement
 from datetime import datetime
 from functools import wraps
+from utils.timezone import to_utc
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -71,7 +72,7 @@ def add_announcement():
     expires_at = None
     if expires_str:
         try:
-            expires_at = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M")
+            expires_at = to_utc(datetime.strptime(expires_str, "%Y-%m-%dT%H:%M"))
         except ValueError:
             flash("Nieprawidłowy format daty wygaśnięcia.", "danger")
             return redirect(url_for("admin.index"))

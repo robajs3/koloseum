@@ -4,7 +4,7 @@ db = SQLAlchemy()
 
 from models.user_model import User
 from models.room_model import Room, RoomMember, Subject
-from models.exam_model import Exam, ChatMessage, ChatAttachment, StudyMaterial, Notification
+from models.exam_model import Exam, ChatMessage, ChatAttachment, StudyMaterial, Notification, ExamReminderLog
 from models.announcement_model import Announcement
 
 __all__ = [
@@ -18,5 +18,6 @@ __all__ = [
     "ChatAttachment",
     "StudyMaterial",
     "Notification",
+    "ExamReminderLog",
     "Announcement",
 ]

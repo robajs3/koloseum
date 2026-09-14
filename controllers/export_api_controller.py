@@ -17,6 +17,7 @@ import os
 from flask import Blueprint, jsonify, request, abort
 
 from services.exam_service import ExamService
+from utils.timezone import to_local
 
 export_api_bp = Blueprint("export_api", __name__)
 
@@ -42,7 +43,7 @@ def my_exams():
             "id": e.id,
             "title": e.title,
             "description": e.description or "",
-            "exam_date": e.exam_date.isoformat(),
+            "exam_date": to_local(e.exam_date).isoformat(),
             "location": e.location or "",
             "exam_type": e.exam_type,
             "subject": e.subject.name if e.subject else "",

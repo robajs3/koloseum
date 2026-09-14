@@ -107,8 +107,8 @@
           <div style="width:48px;height:48px;border-radius:8px;display:flex;flex-direction:column;
                       align-items:center;justify-content:center;font-size:.7rem;font-weight:700;flex-shrink:0;
                       background:{% if days_left <= 1 %}#fee2e2;color:#991b1b{% elif days_left <= 3 %}#fef3c7;color:#92400e{% else %}var(--primary-light);color:var(--primary){% endif %}">
-            <span style="font-size:1rem;line-height:1">{{ exam.exam_date.strftime('%d') }}</span>
-            <span>{{ exam.exam_date.strftime('%b') }}</span>
+            <span style="font-size:1rem;line-height:1">{{ (exam.exam_date|localtime).strftime('%d') }}</span>
+            <span>{{ (exam.exam_date|localtime).strftime('%b') }}</span>
           </div>
           <div style="flex:1;overflow:hidden">
             <div style="font-weight:600;font-size:.85rem;white-space:nowrap;overflow:hidden;
@@ -119,7 +119,7 @@
                         color:var(--text-muted);margin-top:2px">
               <span style="width:8px;height:8px;border-radius:50%;
                            background:{{ exam.subject.color }};flex-shrink:0"></span>
-              {{ exam.subject.name }} • {{ exam.exam_date.strftime('%H:%M') }}
+              {{ exam.subject.name }} • {{ (exam.exam_date|localtime).strftime('%H:%M') }}
             </div>
             {% if exam.location %}
             <div style="font-size:.7rem;color:var(--text-muted);margin-top:1px">

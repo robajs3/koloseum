@@ -22,6 +22,12 @@ class User(UserMixin, db.Model):
     notify_exam_reminder = db.Column(db.Boolean, default=True)
     notify_chat_message = db.Column(db.Boolean, default=False)
     notify_days_before = db.Column(db.Integer, default=1)
+    # Dodatkowe powiadomienie ~godzinę przed terminem (niezależne od
+    # notify_days_before, patrz services/scheduler.py).
+    notify_hour_before = db.Column(db.Boolean, default=False)
+    # "Wycisz powiadomienia" — dopóki utc_now() < muted_until, powiadomienia
+    # push są wyciszone (ale nadal zapisywane w panelu powiadomień).
+    muted_until = db.Column(db.DateTime, nullable=True)
 
     # Push subscription
     push_subscription = db.Column(db.Text, nullable=True)

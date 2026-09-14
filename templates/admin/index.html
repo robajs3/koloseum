@@ -88,9 +88,9 @@
             <div style="font-size:.83rem;margin-top:3px;color:inherit;opacity:.85">{{ ann.content }}</div>
             <div style="font-size:.72rem;margin-top:6px;opacity:.6;display:flex;gap:12px;flex-wrap:wrap">
               <span><i class="fas fa-user" style="margin-right:3px"></i>{{ ann.author.username }}</span>
-              <span><i class="fas fa-calendar" style="margin-right:3px"></i>{{ ann.created_at.strftime('%d.%m.%Y %H:%M') }}</span>
+              <span><i class="fas fa-calendar" style="margin-right:3px"></i>{{ (ann.created_at|localtime).strftime('%d.%m.%Y %H:%M') }}</span>
               {% if ann.expires_at %}
-              <span><i class="fas fa-hourglass-end" style="margin-right:3px"></i>do {{ ann.expires_at.strftime('%d.%m.%Y %H:%M') }}</span>
+              <span><i class="fas fa-hourglass-end" style="margin-right:3px"></i>do {{ (ann.expires_at|localtime).strftime('%d.%m.%Y %H:%M') }}</span>
               {% endif %}
             </div>
           </div>

@@ -51,6 +51,7 @@ def update_notifications():
     current_user.notify_new_exam = "notify_new_exam" in request.form
     current_user.notify_exam_reminder = "notify_exam_reminder" in request.form
     current_user.notify_chat_message = "notify_chat_message" in request.form
+    current_user.notify_hour_before = "notify_hour_before" in request.form
     try:
         days = int(request.form.get("notify_days_before", 1))
         current_user.notify_days_before = max(1, min(days, 30))
@@ -58,7 +59,7 @@ def update_notifications():
         pass
     db.session.commit()
     flash("Ustawienia powiadomień zapisane.", "success")
-    return redirect(url_for("profile.profile"))
+    return redirect(request.referrer or url_for("notifications.list_notifications"))
 
 
 @profile_bp.route("/profile/push-subscribe", methods=["POST"])
