@@ -379,6 +379,14 @@
             {% endif %}
             <div class="mat-thumb-overlay"><i class="fas fa-eye"></i></div>
           </div>
+        {% elif mat.is_filevault_link %}
+          <div class="mat-thumb mat-thumb--clickable"
+               onclick="openLinkPreview('{{ mat.filevault_link|e }}', '{{ mat.title|e }}')"
+               title="Kliknij, aby otworzyć podgląd"
+               style="--thumb-color:{{ icon_color }}">
+            <i class="fas fa-{{ file_icon }}"></i>
+            <div class="mat-thumb-overlay"><i class="fas fa-eye"></i></div>
+          </div>
         {% else %}
           <div class="mat-thumb" style="--thumb-color:{{ icon_color }};cursor:default">
             <i class="fas fa-{{ file_icon }}"></i>
@@ -414,6 +422,12 @@
           {% if can_preview %}
           <button class="btn btn-ghost btn-sm"
                   onclick="openPreview('{{ url_for('subjects.preview_material', subject_id=subject.id, material_id=mat.id) }}', '{{ mat.title|e }}', '{{ 'image' if is_image else 'pdf' if is_pdf else 'video' if is_video else 'audio' if is_audio else 'text' }}')"
+                  title="Podgląd">
+            <i class="fas fa-eye"></i>
+          </button>
+          {% elif mat.is_filevault_link %}
+          <button class="btn btn-ghost btn-sm"
+                  onclick="openLinkPreview('{{ mat.filevault_link|e }}', '{{ mat.title|e }}')"
                   title="Podgląd">
             <i class="fas fa-eye"></i>
           </button>
@@ -615,6 +629,8 @@ function openPreview(url, title, type) {
 
   titleEl.textContent = title;
   dlBtn.href = url;
+  dlBtn.removeAttribute('target');
+  dlBtn.removeAttribute('rel');
 
   body.innerHTML = '';
 
@@ -685,6 +701,90 @@ function openPreview(url, title, type) {
   } else {
     showPreviewError('Podgląd tego formatu nie jest obsługiwany.');
   }
+}
+
+/* ===== PODGLĄD LINKU FILEVAULT (materiały udostępnione jako link) =====
+   Linki FileVault nie mają lokalnego pliku w Koloseum, więc nie da się ich
+   podejrzeć przez openPreview() (to obsługuje tylko pliki wgrane wprost do
+   Koloseum). Zamiast tego osadzamy stronę podglądu FileVault w <iframe>,
+   dokładnie tak jak "Podgląd folderu" wyżej na tej stronie — łącznie z tym
+   samym fallbackiem, bo FileVault i tak może zablokować osadzanie (patrz
+   FRAME_ALLOWED_ORIGINS we FileVault). Link do pojedynczego pliku
+   (/filevault/s/<token>) domyślnie wymusza pobranie, więc dla niego
+   podmieniamy URL na wariant "/preview", który wyświetla plik inline. */
+function deriveFilevaultPreviewUrl(link) {
+  try {
+    const u = new URL(link, window.location.href);
+    const m = u.pathname.match(/^(.*\/filevault\/s\/[^\/]+)\/?$/);
+    if (m) {
+      u.pathname = m[1] + '/preview';
+      return u.toString();
+    }
+  } catch (e) {
+    // Nieprawidłowy URL — zwróć bez zmian, iframe i tak pokaże błąd/fallback.
+  }
+  return link;
+}
+
+function openLinkPreview(link, title) {
+  currentPreviewUrl = link;
+  const modal   = document.getElementById('preview-modal');
+  const body    = document.getElementById('preview-body');
+  const titleEl = document.getElementById('preview-title');
+  const dlBtn   = document.getElementById('preview-download-btn');
+
+  titleEl.textContent = title;
+  dlBtn.href = link;
+  dlBtn.target = '_blank';
+  dlBtn.rel = 'noopener';
+
+  body.innerHTML = '';
+  body.style.padding = '0';
+  body.style.display = 'block';
+  body.style.alignItems = 'unset';
+  body.style.justifyContent = 'unset';
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  const loader = document.createElement('div');
+  loader.style.cssText = 'display:flex;align-items:center;justify-content:center;'
+                        + 'flex-direction:column;gap:10px;height:100%;min-height:70vh;'
+                        + 'color:var(--text-muted)';
+  loader.innerHTML = '<div class="spinner"></div><div style="font-size:.82rem">Ładowanie podglądu…</div>';
+  body.appendChild(loader);
+
+  let loaded = false;
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'width:100%;height:100%;min-height:70vh;border:0;display:none';
+
+  iframe.onload = function () {
+    loaded = true;
+    clearTimeout(timer);
+    body.innerHTML = '';
+    iframe.style.display = 'block';
+    body.appendChild(iframe);
+  };
+
+  // Jak przy podglądzie folderu: jeśli FileVault zablokuje osadzanie
+  // (X-Frame-Options/CSP) albo link po prostu nie da się podejrzeć (np.
+  // format bez wsparcia, hasło na linku), "onload" może się nie odpalić
+  // w ogóle — dlatego po chwili pokazujemy czytelny fallback zamiast ciszy.
+  const timer = setTimeout(function () {
+    if (!loaded) {
+      body.innerHTML = `
+        <div style="text-align:center;padding:40px;color:var(--text-muted)">
+          <i class="fas fa-triangle-exclamation" style="font-size:1.8rem;color:var(--warning,#e0a83a);margin-bottom:12px"></i>
+          <p style="font-size:.9rem;max-width:360px;margin:0 auto 14px">
+            Nie udało się wyświetlić podglądu wewnątrz Koloseum. Otwórz link bezpośrednio:
+          </p>
+          <a href="${link}" target="_blank" rel="noopener" class="btn btn-primary btn-sm">
+            <i class="fas fa-external-link-alt"></i> Otwórz w FileVault
+          </a>
+        </div>`;
+    }
+  }, 3000);
+
+  iframe.src = deriveFilevaultPreviewUrl(link);
 }
 
 function showPreviewError(msg) {
