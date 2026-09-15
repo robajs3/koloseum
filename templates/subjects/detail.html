@@ -237,12 +237,22 @@
             </span>
           </div>
           {% elif att.filevault_link %}
-          <a href="{{ att.filevault_link }}" target="_blank" style="color:inherit;font-size:.78rem;display:flex;align-items:center;gap:8px">
-            <div class="mat-thumb" style="--thumb-color:var(--secondary);width:36px;height:36px;cursor:default">
-              <i class="fas fa-link"></i>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;cursor:pointer"
+                 onclick="openLinkPreview('{{ att.filevault_link|e }}', '{{ att.original_filename|e }}')">
+              <div class="mat-thumb mat-thumb--clickable" style="--thumb-color:var(--secondary);width:36px;height:36px">
+                <i class="fas fa-link"></i>
+                <div class="mat-thumb-overlay"><i class="fas fa-eye"></i></div>
+              </div>
+              <span style="font-size:.78rem;text-decoration:underline;text-underline-offset:2px;opacity:.85">
+                {{ att.original_filename }}
+              </span>
             </div>
-            <span style="text-decoration:underline;text-underline-offset:2px;opacity:.85">{{ att.original_filename }}</span>
-          </a>
+            <a href="{{ att.filevault_link }}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm"
+               style="flex-shrink:0" title="Otwórz w FileVault">
+              <i class="fas fa-external-link-alt"></i>
+            </a>
+          </div>
           {% else %}
           <a href="{{ att_url }}" style="color:inherit;font-size:.78rem;display:flex;align-items:center;gap:8px">
             <div class="mat-thumb" style="--thumb-color:{{ icon_color }};width:36px;height:36px;cursor:default">
@@ -709,16 +719,41 @@ function openPreview(url, title, type) {
    Koloseum). Zamiast tego osadzamy stronę podglądu FileVault w <iframe>,
    dokładnie tak jak "Podgląd folderu" wyżej na tej stronie — łącznie z tym
    samym fallbackiem, bo FileVault i tak może zablokować osadzanie (patrz
-   FRAME_ALLOWED_ORIGINS we FileVault). Link do pojedynczego pliku
-   (/filevault/s/<token>) domyślnie wymusza pobranie, więc dla niego
-   podmieniamy URL na wariant "/preview", który wyświetla plik inline. */
+   FRAME_ALLOWED_ORIGINS we FileVault).
+
+   Linki do POJEDYNCZEGO pliku domyślnie wymuszają pobranie (Content-
+   -Disposition: attachment), więc w iframe nic się nie wyświetli — trzeba
+   je podmienić na wariant "/preview", który serwuje plik inline. Dotyczy
+   to WSZYSTKICH wariantów udostępniania pojedynczego pliku we FileVault,
+   nie tylko zwykłego "szybkiego udostępnienia":
+     /filevault/s/<token>                     -> plik udostępniony wprost
+     /filevault/sf/<token>/file/<id>          -> plik wewnątrz udostępnionego folderu
+     /filevault/sr/<token>/file/<id>          -> plik w głównym folderze pokoju
+     /filevault/srf/<token>/file/<id>         -> plik w podfolderze pokoju
+   Wcześniej rozpoznawany był tylko pierwszy wzorzec — link skopiowany np.
+   z przycisku "Pobierz tylko ten plik" wewnątrz widoku udostępnionego
+   folderu (drugi wzorzec) nie był w ogóle podmieniany, więc trafiał do
+   iframe jako zwykły link pobierania i podgląd się nie wyświetlał.
+   Linki do samego FOLDERU/pokoju (bez /file/<id>) nie potrzebują żadnej
+   podmiany — te strony już renderują się inline. */
 function deriveFilevaultPreviewUrl(link) {
   try {
     const u = new URL(link, window.location.href);
-    const m = u.pathname.match(/^(.*\/filevault\/s\/[^\/]+)\/?$/);
-    if (m) {
-      u.pathname = m[1] + '/preview';
-      return u.toString();
+    if (/\/preview\/?$/.test(u.pathname)) {
+      return u.toString(); // już jest linkiem do podglądu — nic nie zmieniamy
+    }
+    const patterns = [
+      /^(.*\/filevault\/s\/[^\/]+)\/?$/,                 // pojedynczy plik
+      /^(.*\/filevault\/sf\/[^\/]+\/file\/\d+)\/?$/,     // plik w udostępnionym folderze
+      /^(.*\/filevault\/sr\/[^\/]+\/file\/\d+)\/?$/,     // plik w głównym folderze pokoju
+      /^(.*\/filevault\/srf\/[^\/]+\/file\/\d+)\/?$/,    // plik w podfolderze pokoju
+    ];
+    for (const re of patterns) {
+      const m = u.pathname.match(re);
+      if (m) {
+        u.pathname = m[1] + '/preview';
+        return u.toString();
+      }
     }
   } catch (e) {
     // Nieprawidłowy URL — zwróć bez zmian, iframe i tak pokaże błąd/fallback.
