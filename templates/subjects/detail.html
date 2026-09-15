@@ -21,10 +21,6 @@
     <button type="button" class="btn btn-ghost" onclick="toggleFolderPreview()">
       <i class="fas fa-eye"></i> Podgląd folderu
     </button>
-    <a href="{{ subject.filevault_folder_url }}" target="_blank" class="btn btn-ghost">
-      <i class="fas fa-hdd"></i> Folder FileVault
-      <i class="fas fa-external-link-alt" style="font-size:.65rem"></i>
-    </a>
   </div>
   {% endif %}
 </div>
@@ -32,9 +28,25 @@
 {% if subject.filevault_folder_url %}
 <div id="folder-preview-box" style="display:none;margin-bottom:20px">
   <div class="card">
-    <div class="card-body" style="padding:0">
+    <div class="card-body" style="padding:0;position:relative">
+      <div id="folder-preview-loading" style="display:none;align-items:center;justify-content:center;
+           flex-direction:column;gap:10px;height:480px;color:var(--text-muted)">
+        <div class="spinner"></div>
+        <div style="font-size:.82rem">Ładowanie podglądu…</div>
+      </div>
+      <div id="folder-preview-fallback" style="display:none;align-items:center;justify-content:center;
+           flex-direction:column;gap:10px;height:480px;color:var(--text-muted);text-align:center;padding:24px">
+        <i class="fas fa-triangle-exclamation" style="font-size:1.8rem;color:var(--warning,#e0a83a)"></i>
+        <p style="font-size:.88rem;max-width:360px;margin:0">
+          FileVault blokuje wyświetlanie folderu wewnątrz Koloseum (zabezpieczenie
+          przed osadzaniem w obcych stronach). Otwórz go bezpośrednio w nowej karcie:
+        </p>
+        <a href="{{ subject.filevault_folder_url }}" target="_blank" rel="noopener" class="btn btn-primary btn-sm">
+          <i class="fas fa-external-link-alt"></i> Otwórz folder FileVault
+        </a>
+      </div>
       <iframe id="folder-preview-frame" src="" title="Podgląd folderu FileVault"
-              style="width:100%;height:480px;border:0;border-radius:var(--radius-sm);display:block"></iframe>
+              style="width:100%;height:480px;border:0;border-radius:var(--radius-sm);display:none"></iframe>
     </div>
   </div>
 </div>
@@ -526,14 +538,48 @@ const chatBox = document.getElementById('chat-box');
 if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
 
 /* ===== PODGLĄD FOLDERU FILEVAULT (iframe inline) ===== */
+let folderPreviewTimer = null;
+let folderPreviewLoaded = false;
+
 function toggleFolderPreview() {
   const box = document.getElementById('folder-preview-box');
   if (!box) return;
   const frame = document.getElementById('folder-preview-frame');
+  const loading = document.getElementById('folder-preview-loading');
+  const fallback = document.getElementById('folder-preview-fallback');
   const willShow = box.style.display === 'none';
+
   if (willShow && !frame.src) {
+    // Stan startowy: pokaż loader, ukryj ramkę i fallback.
+    loading.style.display = 'flex';
+    fallback.style.display = 'none';
+    frame.style.display = 'none';
+
+    frame.onload = function () {
+      folderPreviewLoaded = true;
+      clearTimeout(folderPreviewTimer);
+      loading.style.display = 'none';
+      fallback.style.display = 'none';
+      frame.style.display = 'block';
+    };
+
+    // FileVault stoi na innym originie i zwykle blokuje osadzanie w obcych
+    // stronach (X-Frame-Options / CSP frame-ancestors) — w takim wypadku
+    // przeglądarka nie ładuje treści, a "onload" może się w ogóle nie
+    // odpalić (albo odpali się z pustą, zablokowaną ramką, której z JS nie
+    // da się odróżnić od poprawnie wczytanej ze względu na politykę
+    // same-origin). Dlatego po krótkim czasie, jeśli nic sensownego się nie
+    // wydarzyło, pokazujemy czytelny fallback zamiast ciszy/pustej ramki.
+    folderPreviewTimer = setTimeout(function () {
+      if (!folderPreviewLoaded) {
+        loading.style.display = 'none';
+        fallback.style.display = 'flex';
+      }
+    }, 3000);
+
     frame.src = {{ subject.filevault_folder_url|tojson }};
   }
+
   box.style.display = willShow ? '' : 'none';
   if (willShow) box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
