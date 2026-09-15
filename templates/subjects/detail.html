@@ -549,7 +549,7 @@ function toggleFolderPreview() {
   const fallback = document.getElementById('folder-preview-fallback');
   const willShow = box.style.display === 'none';
 
-  if (willShow && !frame.src) {
+  if (willShow && !frame.getAttribute('src')) {
     // Stan startowy: pokaż loader, ukryj ramkę i fallback.
     loading.style.display = 'flex';
     fallback.style.display = 'none';
