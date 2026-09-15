@@ -6,6 +6,7 @@ from controllers.profile_controller import profile_bp
 from controllers.notification_controller import notification_bp
 from controllers.admin_controller import admin_bp
 from controllers.export_api_controller import export_api_bp
+from controllers.filevault_panel_controller import filevault_panel_bp
 
 __all__ = [
     "auth_bp",
@@ -16,4 +17,5 @@ __all__ = [
     "notification_bp",
     "admin_bp",
     "export_api_bp",
+    "filevault_panel_bp",
 ]

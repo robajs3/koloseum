@@ -15,6 +15,7 @@
        nie włączą. -->
   <link rel="manifest" href="{{ url_for('web_app_manifest') }}">
   <meta name="theme-color" content="#4f46e5">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/icon-96.png') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/icon-180.png') }}">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -53,9 +54,8 @@
       </a>
 
       <span class="nav-section">Narzędzia</span>
-      <a class="nav-item" href="{{ filevault_url }}" target="_blank" rel="noopener">
+      <a class="nav-item" href="javascript:void(0)" onclick="openFilevaultPanel()">
         <i class="fas fa-hdd nav-icon"></i> Dysk
-        <i class="fas fa-external-link-alt" style="font-size:.65rem;margin-left:auto;opacity:.5"></i>
       </a>
       <a class="nav-item {% if request.endpoint and 'notifications' in request.endpoint %}active{% endif %}"
          href="{{ url_for('notifications.list_notifications') }}">
@@ -184,6 +184,37 @@
 
 </div>
 
+<!-- ===== PANEL "FILEVAULT" — wysuwany z lewej, dostępny z każdej strony ===== -->
+<div id="fv-backdrop" class="fv-backdrop" onclick="closeFilevaultPanel()"></div>
+<aside id="fv-drawer" class="fv-drawer">
+  <div class="fv-drawer-header">
+    <div class="fv-drawer-title">
+      <i class="fas fa-hdd"></i> FileVault
+    </div>
+    <div style="display:flex;align-items:center;gap:4px">
+      <a href="{{ filevault_url }}" target="_blank" rel="noopener" class="fv-icon-btn" title="Otwórz pełny FileVault w nowej karcie">
+        <i class="fas fa-external-link-alt"></i>
+      </a>
+      <button type="button" class="fv-icon-btn" onclick="closeFilevaultPanel()" title="Zamknij">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="fv-drawer-tabs">
+    <button type="button" class="fv-tab-btn active" id="fv-tab-files" onclick="switchFvTab('files')">
+      <i class="fas fa-file"></i> Ostatnie pliki
+    </button>
+    <button type="button" class="fv-tab-btn" id="fv-tab-folders" onclick="switchFvTab('folders')">
+      <i class="fas fa-folder"></i> Foldery
+    </button>
+  </div>
+
+  <div class="fv-drawer-body" id="filevault-panel-body">
+    <div class="fv-loading"><i class="fas fa-spinner fa-spin"></i> Ładowanie…</div>
+  </div>
+</aside>
+
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
   // Hamburger visible on mobile
@@ -199,6 +230,188 @@ if (window.innerWidth <= 768) {
   updateThemeIcon();
   const _origToggle = ThemeManager.toggle.bind(ThemeManager);
   ThemeManager.toggle = function() { _origToggle(); updateThemeIcon(); };
+</script>
+<script>
+const FV_BROWSE_URL = "{{ url_for('filevault_panel.browse') }}";
+const FV_QUICK_SHARE_FILE_URL_TPL = "{{ url_for('filevault_panel.quick_share_file', file_id=0) }}";
+const FV_QUICK_SHARE_FOLDER_URL_TPL = "{{ url_for('filevault_panel.quick_share_folder', folder_id=0) }}";
+const FV_PROFILE_URL = "{{ url_for('profile.profile') }}";
+
+let fvTarget = null;   // null = zwykłe przeglądanie (klik otwiera link);
+                       // 'material' / 'folder' = strona przedmiotu wypełnia pole
+let fvData = null;
+let fvActiveTab = 'files';
+let fvOpen = false;
+
+function openFilevaultPanel(target) {
+  fvTarget = target || null;
+  fvData = null;
+  switchFvTab('files');
+  document.getElementById('fv-backdrop').classList.add('open');
+  document.getElementById('fv-drawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  fvOpen = true;
+
+  const body = document.getElementById('filevault-panel-body');
+  body.innerHTML = '<div class="fv-loading"><i class="fas fa-spinner fa-spin"></i> Ładowanie…</div>';
+
+  fetch(FV_BROWSE_URL)
+    .then(r => r.json().then(data => ({ status: r.status, data })))
+    .then(({ status, data }) => {
+      if (status === 400 && data.error === 'not_linked') {
+        body.innerHTML = `<div class="fv-empty">
+          <i class="fas fa-plug"></i>
+          <p>Nie widzę połączenia z Twoim kontem FileVault. Jeśli logujesz się
+          przez LoginHub, spróbuj się przelogować — w innym wypadku możesz
+          połączyć konto ręcznie tokenem w profilu.</p>
+          <a href="${FV_PROFILE_URL}" class="btn btn-primary btn-sm">Przejdź do profilu</a>
+        </div>`;
+        return;
+      }
+      if (status !== 200) {
+        body.innerHTML = `<div class="fv-empty fv-empty-danger">FileVault jest chwilowo niedostępny. Spróbuj ponownie za chwilę.</div>`;
+        return;
+      }
+      fvData = data;
+      renderFvTab();
+    })
+    .catch(() => {
+      body.innerHTML = `<div class="fv-empty fv-empty-danger">Błąd połączenia z FileVault.</div>`;
+    });
+}
+
+function closeFilevaultPanel() {
+  document.getElementById('fv-backdrop').classList.remove('open');
+  document.getElementById('fv-drawer').classList.remove('open');
+  document.body.style.overflow = '';
+  fvOpen = false;
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && fvOpen) closeFilevaultPanel();
+});
+
+function switchFvTab(tab) {
+  fvActiveTab = tab;
+  document.getElementById('fv-tab-files').classList.toggle('active', tab === 'files');
+  document.getElementById('fv-tab-folders').classList.toggle('active', tab === 'folders');
+  if (fvData) renderFvTab();
+}
+
+function fvFileIcon(ext) {
+  if (['png','jpg','jpeg','gif','webp','svg'].includes(ext)) return 'fa-file-image';
+  if (ext === 'pdf') return 'fa-file-pdf';
+  if (['mp4','webm','ogg','mov'].includes(ext)) return 'fa-file-video';
+  if (['mp3','wav'].includes(ext)) return 'fa-file-audio';
+  if (['zip','rar','7z'].includes(ext)) return 'fa-file-zipper';
+  return 'fa-file';
+}
+
+function fvEscapeAttr(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+function fvEscapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function renderFvTab() {
+  const body = document.getElementById('filevault-panel-body');
+  const items = fvActiveTab === 'files' ? (fvData.recent_files || []) : (fvData.shared_folders || []);
+
+  if (!items.length) {
+    let html = '';
+    if (fvActiveTab === 'files') {
+      html = `<div class="fv-empty"><i class="fas fa-inbox"></i><p>Brak plików w FileVault.</p></div>`;
+    } else {
+      html = `<div class="fv-empty"><i class="fas fa-folder-open"></i>
+        <p>Nie masz jeszcze udostępnionych folderów. Wybierz dowolny poniżej —
+        link zostanie utworzony automatycznie.</p></div>`;
+      if (fvData.all_folders && fvData.all_folders.length) {
+        html += renderFvList(fvData.all_folders, 'folder');
+      }
+    }
+    body.innerHTML = html;
+    return;
+  }
+  body.innerHTML = renderFvList(items, fvActiveTab === 'files' ? 'file' : 'folder');
+}
+
+function renderFvList(items, kind) {
+  return '<div class="fv-list">' + items.map(item => {
+    if (kind === 'file') {
+      const icon = fvFileIcon(item.extension || '');
+      const thumb = item.thumbnail_url
+        ? `<img src="${fvEscapeAttr(item.thumbnail_url)}" alt="" class="fv-thumb" loading="lazy">`
+        : `<div class="fv-thumb fv-thumb-icon"><i class="fas ${icon}"></i></div>`;
+      const badge = item.share_active
+        ? '<span class="fv-badge fv-badge-ok"><i class="fas fa-link"></i> udostępniony</span>'
+        : '<span class="fv-badge">zostanie udostępniony</span>';
+      return `<div class="fv-item" data-kind="file" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}">
+        ${thumb}
+        <div class="fv-item-info">
+          <div class="fv-item-name">${fvEscapeHtml(item.name)}</div>
+          <div class="fv-item-meta"><span>${item.size_human}</span>${badge}</div>
+        </div>
+        <i class="fas fa-chevron-right fv-chevron"></i>
+      </div>`;
+    }
+    const badge = item.share_active
+      ? '<span class="fv-badge fv-badge-ok"><i class="fas fa-link"></i> udostępniony</span>'
+      : '<span class="fv-badge">zostanie udostępniony</span>';
+    return `<div class="fv-item" data-kind="folder" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}">
+      <div class="fv-thumb fv-thumb-icon fv-thumb-folder"><i class="fas fa-folder"></i></div>
+      <div class="fv-item-info">
+        <div class="fv-item-name">${fvEscapeHtml(item.full_path)}</div>
+        <div class="fv-item-meta"><span>${item.file_count} plik(ów)</span>${badge}</div>
+      </div>
+      <i class="fas fa-chevron-right fv-chevron"></i>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+document.getElementById('filevault-panel-body').addEventListener('click', function(e) {
+  const row = e.target.closest('.fv-item');
+  if (!row) return;
+  const id = parseInt(row.dataset.id, 10);
+  const name = row.dataset.name;
+  if (row.dataset.kind === 'file') pickFvFile(id, name);
+  else pickFvFolder(id, name);
+});
+
+function pickFvFile(fileId, fileName) {
+  const url = FV_QUICK_SHARE_FILE_URL_TPL.replace(/\/0$/, '/' + fileId);
+  fetch(url, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.share_url) { alert('Nie udało się udostępnić pliku.'); return; }
+      applyFvPick(data.share_url, fileName);
+    })
+    .catch(() => alert('Błąd połączenia z FileVault.'));
+}
+
+function pickFvFolder(folderId, folderName) {
+  const url = FV_QUICK_SHARE_FOLDER_URL_TPL.replace(/\/0$/, '/' + folderId);
+  fetch(url, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.share_url) { alert('Nie udało się udostępnić folderu.'); return; }
+      applyFvPick(data.share_url, folderName, true);
+    })
+    .catch(() => alert('Błąd połączenia z FileVault.'));
+}
+
+// Domyślne zachowanie po kliknięciu elementu: jeśli strona zdefiniowała
+// własną obsługę (np. wypełnienie pola formularza na stronie przedmiotu),
+// użyj jej — w przeciwnym razie po prostu otwórz link w nowej karcie.
+function applyFvPick(shareUrl, name, isFolder) {
+  if (typeof window.onFilevaultPick === 'function' && fvTarget) {
+    window.onFilevaultPick(fvTarget, shareUrl, name, isFolder);
+    closeFilevaultPanel();
+    return;
+  }
+  window.open(shareUrl, '_blank', 'noopener');
+  closeFilevaultPanel();
+}
 </script>
 {% block extra_scripts %}{% endblock %}
 </body>

@@ -5,7 +5,7 @@ from flask import Flask, render_template, redirect, url_for, abort, send_from_di
 from flask_login import LoginManager, current_user, login_user
 from config import Config
 from models import db, User
-from controllers import auth_bp, dashboard_bp, room_bp, subject_bp, profile_bp, notification_bp, admin_bp, export_api_bp
+from controllers import auth_bp, dashboard_bp, room_bp, subject_bp, profile_bp, notification_bp, admin_bp, export_api_bp, filevault_panel_bp
 from utils.timezone import to_local
 import sso_client
 
@@ -109,6 +109,7 @@ def create_app(config_class=Config) -> Flask:
     app.register_blueprint(notification_bp)
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(export_api_bp)
+    app.register_blueprint(filevault_panel_bp)
 
     # Root redirect
     @app.route("/")
