@@ -33,6 +33,7 @@ services:
       # PrefixMiddleware w app.py. Domyślna wartość w config.py i tak jest
       # "/koloseum", to tylko pozwala nadpisać w razie potrzeby.
       PREFIX: ${PREFIX:-/koloseum}
+      FILEVAULT_INTERNAL_URL: ${FILEVAULT_INTERNAL_URL:-http://host.docker.internal:8000}
       FILEVAULT_BASE_URL: ${FILEVAULT_BASE_URL:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
@@ -47,6 +48,8 @@ services:
       - "${APP_PORT:-5001}:5000"
     volumes:
       - koloseum_uploads:/app/uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - default
       - sso_net
