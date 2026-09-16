@@ -1068,10 +1068,25 @@ tr:hover td { background: var(--primary-light); }
   border-bottom-color: var(--primary);
 }
 
+.fv-drawer-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: .72rem;
+  color: var(--text-muted);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+.fv-drawer-hint i { color: var(--secondary); flex-shrink: 0; }
+
 .fv-drawer-body {
   flex: 1;
   overflow-y: auto;
   padding: 10px;
+  position: relative;
 }
 
 .fv-loading, .fv-empty {
@@ -1105,6 +1120,16 @@ tr:hover td { background: var(--primary-light); }
   transition: background var(--transition);
 }
 .fv-item:hover { background: var(--primary-light); }
+.fv-item[draggable="true"] { cursor: grab; }
+.fv-item.fv-dragging { opacity: .4; }
+
+.fv-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.fv-share-btn { color: var(--primary); }
 
 .fv-thumb {
   width: 44px;
@@ -1154,6 +1179,79 @@ tr:hover td { background: var(--primary-light); }
   color: var(--text-light);
   font-size: .72rem;
   flex-shrink: 0;
+}
+
+/* ── Breadcrumbs (zakładka "Foldery") ── */
+.fv-breadcrumbs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 6px 10px;
+  font-size: .78rem;
+}
+.fv-crumb {
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fv-crumb:hover { background: var(--bg); color: var(--text); }
+.fv-crumb.active { color: var(--primary); font-weight: 600; cursor: default; }
+.fv-crumb.active:hover { background: none; }
+.fv-crumb-sep { color: var(--text-light); font-size: .6rem; }
+
+/* ── Zakładka "Pokoje" ── */
+.fv-room-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 8px 6px;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.fv-room-header i { color: var(--secondary); }
+.fv-room-count {
+  margin-left: auto;
+  font-size: .7rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* ── Toast (potwierdzenie "Udostępniono…", "Link skopiowany…") ── */
+.fv-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translate(-50%, 8px);
+  background: var(--text);
+  color: var(--bg-card);
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: .78rem;
+  font-weight: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease;
+  z-index: 5;
+  white-space: nowrap;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fv-toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ── Strefa upuszczania (drag & drop z panelu "Dysk", patrz window.FvDnD) ── */
+.fv-dropzone-active {
+  outline: 2px dashed var(--primary);
+  outline-offset: 3px;
+  background: var(--primary-light);
+  border-radius: var(--radius);
 }
 
 @media (max-width: 768px) {

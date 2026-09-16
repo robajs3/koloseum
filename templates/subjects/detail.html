@@ -302,7 +302,7 @@
   <div class="card mb-4">
     <div class="card-header"><h4><i class="fas fa-upload" style="color:var(--primary);margin-right:6px"></i>Dodaj materiał</h4></div>
     <div class="card-body">
-      <form method="POST" action="{{ url_for('subjects.add_material', subject_id=subject.id) }}"
+      <form method="POST" id="add-material-form" action="{{ url_for('subjects.add_material', subject_id=subject.id) }}"
             enctype="multipart/form-data">
         <div class="form-group">
           <label class="form-label">Tytuł *</label>
@@ -479,7 +479,7 @@
   <div class="card" style="margin-top:16px">
     <div class="card-header"><h4><i class="fas fa-hdd" style="color:var(--secondary);margin-right:6px"></i>Folder FileVault</h4></div>
     <div class="card-body">
-      <form method="POST" action="{{ url_for('subjects.set_filevault_folder', subject_id=subject.id) }}">
+      <form method="POST" id="set-folder-form" action="{{ url_for('subjects.set_filevault_folder', subject_id=subject.id) }}">
         <div class="form-group" style="display:flex;gap:8px">
           <input type="text" name="filevault_folder_url" id="folder-filevault-link" class="form-control"
                  value="{{ subject.filevault_folder_url or '' }}"
@@ -625,6 +625,33 @@ window.onFilevaultPick = function(target, shareUrl, name, isFolder) {
   const titleInput = document.getElementById('material-title');
   if (titleInput && !titleInput.value) titleInput.value = name;
 };
+
+/* ===== PRZECIĄGNIJ-I-UPUŚĆ Z PANELU "DYSK" (patrz window.FvDnD w base.html) =====
+   Cała zakładka "Materiały" jest strefą upuszczania: przeciągnięty plik/folder
+   z panelu "Dysk" zostaje automatycznie udostępniony (dokładnie tak samo jak
+   przy zwykłym wyborze z panelu — patrz FvDnD._resolve) i od razu dodany jako
+   materiał / zapisany jako folder przedmiotu, bez dodatkowego klikania. */
+(function () {
+  const dropZone = document.getElementById('pane-materials');
+  if (!dropZone || !window.FvDnD) return;
+  window.FvDnD.attach(dropZone, {
+    onFile(shareUrl, name) {
+      const linkInput = document.getElementById('material-filevault-link');
+      const titleInput = document.getElementById('material-title');
+      if (linkInput) linkInput.value = shareUrl;
+      if (titleInput && !titleInput.value) titleInput.value = name;
+      const form = document.getElementById('add-material-form');
+      if (form) form.submit();
+    },
+    onFolder(shareUrl, name) {
+      const input = document.getElementById('folder-filevault-link');
+      const form = document.getElementById('set-folder-form');
+      if (!input || !form) return; // pole widoczne tylko dla admina pokoju
+      input.value = shareUrl;
+      form.submit();
+    },
+  });
+})();
 
 
 /* ===== PODGLĄD PLIKÓW ===== */

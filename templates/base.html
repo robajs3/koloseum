@@ -203,16 +203,26 @@
 
   <div class="fv-drawer-tabs">
     <button type="button" class="fv-tab-btn active" id="fv-tab-files" onclick="switchFvTab('files')">
-      <i class="fas fa-file"></i> Ostatnie pliki
+      <i class="fas fa-file"></i> Pliki
     </button>
     <button type="button" class="fv-tab-btn" id="fv-tab-folders" onclick="switchFvTab('folders')">
       <i class="fas fa-folder"></i> Foldery
     </button>
+    <button type="button" class="fv-tab-btn" id="fv-tab-rooms" onclick="switchFvTab('rooms')">
+      <i class="fas fa-door-open"></i> Pokoje
+    </button>
+  </div>
+
+  <div class="fv-drawer-hint" id="fv-drawer-hint">
+    <i class="fas fa-arrows-up-down-left-right"></i>
+    Przeciągnij plik lub folder na "Materiały" w przedmiocie, aby go tam dodać i od razu udostępnić.
   </div>
 
   <div class="fv-drawer-body" id="filevault-panel-body">
     <div class="fv-loading"><i class="fas fa-spinner fa-spin"></i> Ładowanie…</div>
   </div>
+
+  <div id="fv-toast" class="fv-toast"></div>
 </aside>
 
 <!-- ===== Modal podglądu pliku z panelu "Dysk" (globalny, dostępny z każdej strony) ===== -->
@@ -255,19 +265,24 @@ if (window.innerWidth <= 768) {
 </script>
 <script>
 const FV_BROWSE_URL = "{{ url_for('filevault_panel.browse') }}";
+const FV_ROOMS_URL = "{{ url_for('filevault_panel.rooms') }}";
 const FV_QUICK_SHARE_FILE_URL_TPL = "{{ url_for('filevault_panel.quick_share_file', file_id=0) }}";
 const FV_QUICK_SHARE_FOLDER_URL_TPL = "{{ url_for('filevault_panel.quick_share_folder', folder_id=0) }}";
 const FV_PROFILE_URL = "{{ url_for('profile.profile') }}";
 
 let fvTarget = null;   // null = zwykłe przeglądanie (klik otwiera link);
                        // 'material' / 'folder' = strona przedmiotu wypełnia pole
-let fvData = null;
+let fvData = null;            // wynik /filevault-panel/browse: {all_files, all_folders, ...}
+let fvRoomsData = null;       // wynik /filevault-panel/rooms (ładowane leniwie, dopiero gdy user otworzy zakładkę)
+let fvCurrentFolderId = null; // aktualny poziom w zakładce "Foldery" (null = korzeń dysku)
 let fvActiveTab = 'files';
 let fvOpen = false;
 
 function openFilevaultPanel(target) {
   fvTarget = target || null;
   fvData = null;
+  fvRoomsData = null;
+  fvCurrentFolderId = null;
   switchFvTab('files');
   document.getElementById('fv-backdrop').classList.add('open');
   document.getElementById('fv-drawer').classList.add('open');
@@ -281,13 +296,7 @@ function openFilevaultPanel(target) {
     .then(r => r.json().then(data => ({ status: r.status, data })))
     .then(({ status, data }) => {
       if (status === 400 && data.error === 'not_linked') {
-        body.innerHTML = `<div class="fv-empty">
-          <i class="fas fa-plug"></i>
-          <p>Nie widzę połączenia z Twoim kontem FileVault. Jeśli logujesz się
-          przez LoginHub, spróbuj się przelogować — w innym wypadku możesz
-          połączyć konto ręcznie tokenem w profilu.</p>
-          <a href="${FV_PROFILE_URL}" class="btn btn-primary btn-sm">Przejdź do profilu</a>
-        </div>`;
+        body.innerHTML = fvNotLinkedHtml();
         return;
       }
       if (status !== 200) {
@@ -295,11 +304,21 @@ function openFilevaultPanel(target) {
         return;
       }
       fvData = data;
-      renderFvTab();
+      if (fvActiveTab !== 'rooms') renderFvTab();
     })
     .catch(() => {
       body.innerHTML = `<div class="fv-empty fv-empty-danger">Błąd połączenia z FileVault.</div>`;
     });
+}
+
+function fvNotLinkedHtml() {
+  return `<div class="fv-empty">
+    <i class="fas fa-plug"></i>
+    <p>Nie widzę połączenia z Twoim kontem FileVault. Jeśli logujesz się
+    przez LoginHub, spróbuj się przelogować — w innym wypadku możesz
+    połączyć konto ręcznie tokenem w profilu.</p>
+    <a href="${FV_PROFILE_URL}" class="btn btn-primary btn-sm">Przejdź do profilu</a>
+  </div>`;
 }
 
 function closeFilevaultPanel() {
@@ -317,6 +336,12 @@ function switchFvTab(tab) {
   fvActiveTab = tab;
   document.getElementById('fv-tab-files').classList.toggle('active', tab === 'files');
   document.getElementById('fv-tab-folders').classList.toggle('active', tab === 'folders');
+  document.getElementById('fv-tab-rooms').classList.toggle('active', tab === 'rooms');
+  document.getElementById('fv-drawer-hint').style.display = (tab === 'rooms') ? 'none' : '';
+  if (tab === 'rooms') {
+    renderFvRooms();
+    return;
+  }
   if (fvData) renderFvTab();
 }
 
@@ -336,79 +361,252 @@ function fvEscapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ===== Zakładka "Pliki" — WSZYSTKIE pliki z konta, nie tylko udostępnione =====
 function renderFvTab() {
   const body = document.getElementById('filevault-panel-body');
-  const items = fvActiveTab === 'files' ? (fvData.recent_files || []) : (fvData.shared_folders || []);
-
-  if (!items.length) {
-    let html = '';
-    if (fvActiveTab === 'files') {
-      html = `<div class="fv-empty"><i class="fas fa-inbox"></i><p>Brak plików w FileVault.</p></div>`;
-    } else {
-      html = `<div class="fv-empty"><i class="fas fa-folder-open"></i>
-        <p>Nie masz jeszcze udostępnionych folderów. Wybierz dowolny poniżej —
-        link zostanie utworzony automatycznie.</p></div>`;
-      if (fvData.all_folders && fvData.all_folders.length) {
-        html += renderFvList(fvData.all_folders, 'folder');
-      }
-    }
-    body.innerHTML = html;
+  if (fvActiveTab === 'folders') {
+    renderFvFolderLevel();
     return;
   }
-  body.innerHTML = renderFvList(items, fvActiveTab === 'files' ? 'file' : 'folder');
+  const items = fvData.all_files || [];
+  body.innerHTML = items.length
+    ? '<div class="fv-list">' + items.map(fvFileItemHtml).join('') + '</div>'
+    : `<div class="fv-empty"><i class="fas fa-inbox"></i><p>Brak plików w FileVault.</p></div>`;
 }
 
-function renderFvList(items, kind) {
-  return '<div class="fv-list">' + items.map(item => {
-    if (kind === 'file') {
-      const icon = fvFileIcon(item.extension || '');
-      const thumb = item.thumbnail_url
-        ? `<img src="${fvEscapeAttr(item.thumbnail_url)}" alt="" class="fv-thumb" loading="lazy">`
-        : `<div class="fv-thumb fv-thumb-icon"><i class="fas ${icon}"></i></div>`;
-      const badge = item.share_active
-        ? '<span class="fv-badge fv-badge-ok"><i class="fas fa-link"></i> udostępniony</span>'
-        : '<span class="fv-badge">zostanie udostępniony</span>';
-      // Oczko podglądu — tylko dla typów, które FileVault umie wyrenderować
-      // inline (obraz/pdf/wideo/audio, patrz is_previewable z /api/browse).
-      // stopPropagation, żeby kliknięcie oczka nie odpalało też kliknięcia
-      // wiersza (które udostępnia/wybiera plik — inna akcja).
-      const previewBtn = item.is_previewable
-        ? `<button type="button" class="fv-icon-btn fv-preview-btn" title="Podgląd"
-             onclick="event.stopPropagation(); previewFvFile(${item.id}, '${fvEscapeAttr(item.name)}', ${item.share_active ? `'${fvEscapeAttr(item.share_url)}'` : 'null'})">
-             <i class="fas fa-eye"></i>
-           </button>`
-        : '';
-      return `<div class="fv-item" data-kind="file" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}">
-        ${thumb}
-        <div class="fv-item-info">
-          <div class="fv-item-name">${fvEscapeHtml(item.name)}</div>
-          <div class="fv-item-meta"><span>${item.size_human}</span>${badge}</div>
-        </div>
-        ${previewBtn}
-        <i class="fas fa-chevron-right fv-chevron"></i>
-      </div>`;
-    }
-    const badge = item.share_active
-      ? '<span class="fv-badge fv-badge-ok"><i class="fas fa-link"></i> udostępniony</span>'
-      : '<span class="fv-badge">zostanie udostępniony</span>';
-    return `<div class="fv-item" data-kind="folder" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}">
-      <div class="fv-thumb fv-thumb-icon fv-thumb-folder"><i class="fas fa-folder"></i></div>
-      <div class="fv-item-info">
-        <div class="fv-item-name">${fvEscapeHtml(item.full_path)}</div>
-        <div class="fv-item-meta"><span>${item.file_count} plik(ów)</span>${badge}</div>
-      </div>
-      <i class="fas fa-chevron-right fv-chevron"></i>
-    </div>`;
-  }).join('') + '</div>';
+// ===== Zakładka "Foldery" — przeglądanie drzewa folderów; w każdym
+// folderze widać WSZYSTKIE jego pliki (nie tylko te już udostępnione) =====
+function fvFolderChildren(parentId) {
+  return (fvData.all_folders || []).filter(f => f.parent_id === parentId);
+}
+function fvFilesIn(folderId) {
+  return (fvData.all_files || []).filter(f => f.folder_id === folderId);
+}
+function fvBreadcrumbChain(folderId) {
+  const byId = {};
+  (fvData.all_folders || []).forEach(f => { byId[f.id] = f; });
+  const chain = [];
+  let id = folderId;
+  while (id) {
+    const f = byId[id];
+    if (!f) break;
+    chain.unshift(f);
+    id = f.parent_id;
+  }
+  return chain;
+}
+function fvOpenFolder(folderId) {
+  fvCurrentFolderId = folderId;
+  if (fvActiveTab !== 'folders') { fvActiveTab = 'folders'; switchFvTab('folders'); return; }
+  renderFvFolderLevel();
+}
+function fvFolderLabel(folderId) {
+  if (!folderId) return null;
+  const f = (fvData.all_folders || []).find(x => x.id === folderId);
+  return f ? f.full_path : null;
 }
 
+function renderFvFolderLevel() {
+  const body = document.getElementById('filevault-panel-body');
+  const subfolders = fvFolderChildren(fvCurrentFolderId);
+  const files = fvFilesIn(fvCurrentFolderId);
+  const chain = fvCurrentFolderId ? fvBreadcrumbChain(fvCurrentFolderId) : [];
+
+  let html = '<div class="fv-breadcrumbs">';
+  html += `<span class="fv-crumb${!fvCurrentFolderId ? ' active' : ''}" onclick="fvOpenFolder(null)"><i class="fas fa-hdd"></i> Dysk</span>`;
+  chain.forEach((f, i) => {
+    html += `<i class="fas fa-chevron-right fv-crumb-sep"></i><span class="fv-crumb${i === chain.length - 1 ? ' active' : ''}" onclick="fvOpenFolder(${f.id})">${fvEscapeHtml(f.name)}</span>`;
+  });
+  html += '</div>';
+
+  if (!subfolders.length && !files.length) {
+    html += `<div class="fv-empty"><i class="fas fa-folder-open"></i><p>Ten folder jest pusty.</p></div>`;
+  } else {
+    html += '<div class="fv-list">';
+    html += subfolders.map(fvFolderItemHtml).join('');
+    html += files.map(fvFileItemHtml).join('');
+    html += '</div>';
+  }
+  body.innerHTML = html;
+}
+
+function fvFileItemHtml(item) {
+  const icon = fvFileIcon(item.extension || '');
+  const thumb = item.thumbnail_url
+    ? `<img src="${fvEscapeAttr(item.thumbnail_url)}" alt="" class="fv-thumb" loading="lazy">`
+    : `<div class="fv-thumb fv-thumb-icon"><i class="fas ${icon}"></i></div>`;
+  const badge = item.share_active
+    ? '<span class="fv-badge fv-badge-ok"><i class="fas fa-link"></i> udostępniony</span>'
+    : '<span class="fv-badge">nieudostępniony</span>';
+  // W widoku płaskim ("Pliki") dorzuć nazwę folderu, w którym plik leży —
+  // w widoku "Foldery" (wewnątrz konkretnego folderu) to zbędne, ale
+  // funkcja jest wspólna, więc po prostu pokazujemy, gdy fvActiveTab==='files'.
+  const folderHint = (fvActiveTab === 'files' && item.folder_id) ? fvFolderLabel(item.folder_id) : null;
+  const folderMeta = folderHint ? `<span><i class="fas fa-folder"></i> ${fvEscapeHtml(folderHint)}</span>` : '';
+  // Oczko podglądu — tylko dla typów, które FileVault umie wyrenderować
+  // inline (obraz/pdf/wideo/audio, patrz is_previewable z /api/browse).
+  // stopPropagation, żeby kliknięcie oczka nie odpalało też kliknięcia
+  // wiersza (które udostępnia/wybiera plik — inna akcja).
+  const previewBtn = item.is_previewable
+    ? `<button type="button" class="fv-icon-btn fv-preview-btn" title="Podgląd"
+         onclick="event.stopPropagation(); previewFvFile(${item.id}, '${fvEscapeAttr(item.name)}', ${item.share_active ? `'${fvEscapeAttr(item.share_url)}'` : 'null'})">
+         <i class="fas fa-eye"></i>
+       </button>`
+    : '';
+  const shareBtn = !item.share_active
+    ? `<button type="button" class="fv-icon-btn fv-share-btn" title="Udostępnij"
+         onclick="event.stopPropagation(); quickShareFile(${item.id}, '${fvEscapeAttr(item.name)}')">
+         <i class="fas fa-share-alt"></i>
+       </button>`
+    : `<button type="button" class="fv-icon-btn" title="Kopiuj link"
+         onclick="event.stopPropagation(); fvCopyLink('${fvEscapeAttr(item.share_url)}')">
+         <i class="fas fa-link"></i>
+       </button>`;
+  const payload = fvEscapeAttr(JSON.stringify({ kind: 'file', id: item.id, name: item.name }));
+  return `<div class="fv-item" draggable="true" data-kind="file" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}" data-payload="${payload}">
+    ${thumb}
+    <div class="fv-item-info">
+      <div class="fv-item-name">${fvEscapeHtml(item.name)}</div>
+      <div class="fv-item-meta"><span>${item.size_human}</span>${folderMeta}${badge}</div>
+    </div>
+    <div class="fv-item-actions">${previewBtn}${shareBtn}</div>
+  </div>`;
+}
+
+function fvFolderItemHtml(item) {
+  const badge = item.share_active
+    ? '<span class="fv-badge fv-badge-ok"><i class="fas fa-link"></i> udostępniony</span>'
+    : '<span class="fv-badge">nieudostępniony</span>';
+  const shareBtn = !item.share_active
+    ? `<button type="button" class="fv-icon-btn fv-share-btn" title="Udostępnij"
+         onclick="event.stopPropagation(); quickShareFolder(${item.id}, '${fvEscapeAttr(item.name)}')">
+         <i class="fas fa-share-alt"></i>
+       </button>`
+    : `<button type="button" class="fv-icon-btn" title="Kopiuj link"
+         onclick="event.stopPropagation(); fvCopyLink('${fvEscapeAttr(item.share_url)}')">
+         <i class="fas fa-link"></i>
+       </button>`;
+  const payload = fvEscapeAttr(JSON.stringify({ kind: 'folder', id: item.id, name: item.name }));
+  return `<div class="fv-item" draggable="true" data-kind="folder" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}" data-payload="${payload}">
+    <div class="fv-thumb fv-thumb-icon fv-thumb-folder"><i class="fas fa-folder"></i></div>
+    <div class="fv-item-info">
+      <div class="fv-item-name">${fvEscapeHtml(item.name)}</div>
+      <div class="fv-item-meta"><span>${item.file_count} plik(ów)</span>${badge}</div>
+    </div>
+    <div class="fv-item-actions">${shareBtn}</div>
+    <i class="fas fa-chevron-right fv-chevron" title="Otwórz folder"></i>
+  </div>`;
+}
+
+// ===== Zakładka "Pokoje" — pliki udostępnione w pokojach FileVault, do
+// których user należy. Ładowane leniwie (dopiero po otwarciu zakładki),
+// bo w większości otwarć panelu w ogóle jej nie ruszamy. =====
+function renderFvRooms() {
+  const body = document.getElementById('filevault-panel-body');
+  if (fvRoomsData !== null) {
+    body.innerHTML = fvRoomsHtml(fvRoomsData);
+    return;
+  }
+  body.innerHTML = '<div class="fv-loading"><i class="fas fa-spinner fa-spin"></i> Ładowanie…</div>';
+  fetch(FV_ROOMS_URL)
+    .then(r => r.json().then(data => ({ status: r.status, data })))
+    .then(({ status, data }) => {
+      if (fvActiveTab !== 'rooms') return; // user zdążył przełączyć zakładkę
+      if (status === 400 && data.error === 'not_linked') {
+        body.innerHTML = fvNotLinkedHtml();
+        return;
+      }
+      if (status !== 200) {
+        body.innerHTML = `<div class="fv-empty fv-empty-danger">Nie udało się wczytać pokoi.</div>`;
+        return;
+      }
+      fvRoomsData = data.rooms || [];
+      body.innerHTML = fvRoomsHtml(fvRoomsData);
+    })
+    .catch(() => {
+      if (fvActiveTab !== 'rooms') return;
+      body.innerHTML = `<div class="fv-empty fv-empty-danger">Błąd połączenia z FileVault.</div>`;
+    });
+}
+
+function fvRoomsHtml(rooms) {
+  if (!rooms.length) {
+    return `<div class="fv-empty"><i class="fas fa-door-open"></i><p>Nie należysz do żadnego pokoju w FileVault.</p></div>`;
+  }
+  return rooms.map(room => {
+    const filesHtml = room.files.length
+      ? '<div class="fv-list">' + room.files.map(fvRoomFileItemHtml).join('') + '</div>'
+      : `<div class="fv-empty" style="padding:14px 10px"><p style="margin:0">Brak plików w tym pokoju.</p></div>`;
+    return `<div class="fv-room-header"><i class="fas fa-door-open"></i> ${fvEscapeHtml(room.name)}
+      <span class="fv-room-count">${room.file_count} plik(ów)</span></div>${filesHtml}`;
+  }).join('');
+}
+
+function fvRoomFileItemHtml(item) {
+  const icon = fvFileIcon(item.extension || '');
+  const thumb = item.thumbnail_url
+    ? `<img src="${fvEscapeAttr(item.thumbnail_url)}" alt="" class="fv-thumb" loading="lazy">`
+    : `<div class="fv-thumb fv-thumb-icon"><i class="fas ${icon}"></i></div>`;
+  const bits = [item.size_human];
+  if (item.folder_path) bits.push(`<i class="fas fa-folder"></i> ${fvEscapeHtml(item.folder_path)}`);
+  if (item.uploaded_by) bits.push(fvEscapeHtml(item.uploaded_by));
+  const previewBtn = (item.is_previewable && item.preview_url)
+    ? `<button type="button" class="fv-icon-btn fv-preview-btn" title="Podgląd"
+         onclick="event.stopPropagation(); openFvPreviewModal('${fvEscapeAttr(item.preview_url)}', '${fvEscapeAttr(item.name)}', '${fvEscapeAttr(item.download_url)}')">
+         <i class="fas fa-eye"></i>
+       </button>`
+    : '';
+  // Pliki pokoju są już dostępne dla każdego członka (patrz
+  // controllers/files.py:_get_file_with_access we FileVault) — nie ma tu
+  // czego "udostępniać" osobno, dlatego brak przycisku share/badge.
+  const payload = fvEscapeAttr(JSON.stringify({ kind: 'room_file', id: item.id, name: item.name, url: item.download_url }));
+  return `<div class="fv-item" draggable="true" data-kind="room_file" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}"
+       data-url="${fvEscapeAttr(item.download_url)}" data-payload="${payload}">
+    ${thumb}
+    <div class="fv-item-info">
+      <div class="fv-item-name">${fvEscapeHtml(item.name)}</div>
+      <div class="fv-item-meta"><span>${bits.join(' · ')}</span></div>
+    </div>
+    <div class="fv-item-actions">${previewBtn}</div>
+  </div>`;
+}
+
+// ===== Klik na element listy =====
 document.getElementById('filevault-panel-body').addEventListener('click', function(e) {
   const row = e.target.closest('.fv-item');
   if (!row) return;
   const id = parseInt(row.dataset.id, 10);
   const name = row.dataset.name;
-  if (row.dataset.kind === 'file') pickFvFile(id, name);
-  else pickFvFolder(id, name);
+  const kind = row.dataset.kind;
+  if (kind === 'file') {
+    pickFvFile(id, name);
+  } else if (kind === 'folder') {
+    // Poza trybem "wybierania folderu" (fvTarget==='folder') klik na folder
+    // WCHODZI do niego (pokazuje wszystkie jego pliki) zamiast go od razu
+    // udostępniać — do szybkiego udostępnienia służy osobna ikonka.
+    if (fvTarget === 'folder') {
+      pickFvFolder(id, name);
+    } else {
+      fvOpenFolder(id);
+    }
+  } else if (kind === 'room_file') {
+    applyFvPick(row.dataset.url, name);
+  }
+});
+
+// ===== Przeciąganie (drag & drop) elementów listy — patrz window.FvDnD
+// niżej, które łapie drop na stronie docelowej (np. "Materiały" przedmiotu). =====
+document.getElementById('filevault-panel-body').addEventListener('dragstart', function(e) {
+  const row = e.target.closest('.fv-item');
+  if (!row || !row.dataset.payload) return;
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('application/json', row.dataset.payload);
+  e.dataTransfer.setData('text/plain', row.dataset.name || '');
+  row.classList.add('fv-dragging');
+});
+document.getElementById('filevault-panel-body').addEventListener('dragend', function(e) {
+  const row = e.target.closest('.fv-item');
+  if (row) row.classList.remove('fv-dragging');
 });
 
 function pickFvFile(fileId, fileName) {
@@ -417,6 +615,7 @@ function pickFvFile(fileId, fileName) {
     .then(r => r.json())
     .then(data => {
       if (!data.share_url) { alert('Nie udało się udostępnić pliku.'); return; }
+      fvUpdateFileShare(fileId, data.share_url);
       applyFvPick(data.share_url, fileName);
     })
     .catch(() => alert('Błąd połączenia z FileVault.'));
@@ -428,9 +627,60 @@ function pickFvFolder(folderId, folderName) {
     .then(r => r.json())
     .then(data => {
       if (!data.share_url) { alert('Nie udało się udostępnić folderu.'); return; }
+      fvUpdateFolderShare(folderId, data.share_url);
       applyFvPick(data.share_url, folderName, true);
     })
     .catch(() => alert('Błąd połączenia z FileVault.'));
+}
+
+// "Udostępnij" bez wychodzenia z panelu / bez wybierania (przycisk ikonki
+// przy elemencie, który jeszcze nie ma aktywnego linku) — patrz "jak coś nie
+// jest udostępnione, daj opcję udostępnienia".
+function quickShareFile(fileId, fileName) {
+  const url = FV_QUICK_SHARE_FILE_URL_TPL.replace(/\/0$/, '/' + fileId);
+  fetch(url, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.share_url) { alert('Nie udało się udostępnić pliku.'); return; }
+      fvUpdateFileShare(fileId, data.share_url);
+      renderFvTab();
+      fvToast(`Udostępniono „${fileName}".`);
+    })
+    .catch(() => alert('Błąd połączenia z FileVault.'));
+}
+function quickShareFolder(folderId, folderName) {
+  const url = FV_QUICK_SHARE_FOLDER_URL_TPL.replace(/\/0$/, '/' + folderId);
+  fetch(url, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.share_url) { alert('Nie udało się udostępnić folderu.'); return; }
+      fvUpdateFolderShare(folderId, data.share_url);
+      renderFvTab();
+      fvToast(`Udostępniono „${folderName}".`);
+    })
+    .catch(() => alert('Błąd połączenia z FileVault.'));
+}
+function fvUpdateFileShare(fileId, shareUrl) {
+  (fvData.all_files || []).forEach(f => { if (f.id === fileId) { f.share_active = true; f.share_url = shareUrl; } });
+  (fvData.recent_files || []).forEach(f => { if (f.id === fileId) { f.share_active = true; f.share_url = shareUrl; } });
+}
+function fvUpdateFolderShare(folderId, shareUrl) {
+  (fvData.all_folders || []).forEach(f => { if (f.id === folderId) { f.share_active = true; f.share_url = shareUrl; } });
+}
+function fvCopyLink(url) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(() => fvToast('Link skopiowany do schowka.')).catch(() => prompt('Skopiuj link:', url));
+  } else {
+    prompt('Skopiuj link:', url);
+  }
+}
+function fvToast(msg) {
+  const el = document.getElementById('fv-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(window._fvToastTimer);
+  window._fvToastTimer = setTimeout(() => el.classList.remove('show'), 2200);
 }
 
 // Domyślne zachowanie po kliknięciu elementu: jeśli strona zdefiniowała
@@ -445,6 +695,64 @@ function applyFvPick(shareUrl, name, isFolder) {
   window.open(shareUrl, '_blank', 'noopener');
   closeFilevaultPanel();
 }
+
+// ===== window.FvDnD — pomocnik dla stron docelowych (np. "Materiały"
+// przedmiotu), żeby zamienić dowolny element w strefę upuszczania plików/
+// folderów przeciągniętych z panelu "Dysk". Dla własnych plików/folderów
+// AUTOMATYCZNIE je udostępnia (dokładnie to samo, co dzieje się przy
+// zwykłym wyborze z panelu) — stąd nie trzeba osobno klikać "Udostępnij"
+// po przeciągnięciu. Pliki z pokoi (kind==='room_file') są już dostępne
+// dla członków pokoju, więc używamy ich linku wprost, bez dodatkowego
+// wywołania udostępniania.
+//
+// Użycie: FvDnD.attach(elementDOM, { onFile(shareUrl, name), onFolder(shareUrl, name) })
+window.FvDnD = {
+  attach(el, handlers) {
+    if (!el) return;
+    el.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      el.classList.add('fv-dropzone-active');
+    });
+    el.addEventListener('dragleave', e => {
+      if (e.target === el) el.classList.remove('fv-dropzone-active');
+    });
+    el.addEventListener('drop', e => {
+      e.preventDefault();
+      el.classList.remove('fv-dropzone-active');
+      const raw = e.dataTransfer.getData('application/json');
+      if (!raw) return;
+      let payload;
+      try { payload = JSON.parse(raw); } catch (err) { return; }
+      window.FvDnD._resolve(payload, handlers);
+    });
+  },
+  _resolve(payload, handlers) {
+    if (payload.kind === 'file') {
+      const url = FV_QUICK_SHARE_FILE_URL_TPL.replace(/\/0$/, '/' + payload.id);
+      fetch(url, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          if (!data.share_url) { alert('Nie udało się udostępnić pliku.'); return; }
+          if (fvData) fvUpdateFileShare(payload.id, data.share_url);
+          handlers.onFile && handlers.onFile(data.share_url, payload.name);
+        })
+        .catch(() => alert('Błąd połączenia z FileVault.'));
+    } else if (payload.kind === 'folder') {
+      const url = FV_QUICK_SHARE_FOLDER_URL_TPL.replace(/\/0$/, '/' + payload.id);
+      fetch(url, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+          if (!data.share_url) { alert('Nie udało się udostępnić folderu.'); return; }
+          if (fvData) fvUpdateFolderShare(payload.id, data.share_url);
+          handlers.onFolder && handlers.onFolder(data.share_url, payload.name);
+        })
+        .catch(() => alert('Błąd połączenia z FileVault.'));
+    } else if (payload.kind === 'room_file') {
+      handlers.onFile && handlers.onFile(payload.url, payload.name);
+    }
+  }
+};
 
 // ===== Podgląd pliku prosto z panelu "Dysk" (bez wychodzenia z Koloseum) =====
 // Wcześniej kliknięcie pliku w panelu tylko go udostępniało/pobierało —

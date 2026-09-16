@@ -66,11 +66,43 @@ def verify_token(token: str) -> dict | None:
 
 
 def browse(sso_cookie_value: str | None = None, token: str | None = None) -> dict | None:
-    """Zwraca {"recent_files": [...], "shared_folders": [...], "all_folders": [...]}."""
+    """Zwraca {"recent_files": [...], "all_files": [...], "shared_folders": [...],
+    "all_folders": [...]}. "all_files"/"all_folders" to CAŁE konto, nie tylko to,
+    co ma już aktywny link udostępniania."""
     if not sso_cookie_value and not token:
         return None
     try:
         resp = requests.get(f"{_api_base()}/browse", timeout=TIMEOUT,
+                             **_auth_kwargs(sso_cookie_value, token))
+    except requests.RequestException:
+        return None
+    if resp.status_code != 200:
+        return None
+    return resp.json()
+
+
+def folder_files(folder_id: int, sso_cookie_value: str | None = None, token: str | None = None) -> dict | None:
+    """Zwraca zawartość jednego folderu (pliki + podfoldery + breadcrumbs) do
+    przeglądania w panelu "Dysk" (zakładka "Foldery")."""
+    if not sso_cookie_value and not token:
+        return None
+    try:
+        resp = requests.get(f"{_api_base()}/folders/{folder_id}/files", timeout=TIMEOUT,
+                             **_auth_kwargs(sso_cookie_value, token))
+    except requests.RequestException:
+        return None
+    if resp.status_code != 200:
+        return None
+    return resp.json()
+
+
+def room_shared_files(sso_cookie_value: str | None = None, token: str | None = None) -> dict | None:
+    """Zwraca pokoje FileVault, do których user należy, razem z plikami w nich
+    udostępnionymi. Używane przez zakładkę "Pokoje" panelu "Dysk"."""
+    if not sso_cookie_value and not token:
+        return None
+    try:
+        resp = requests.get(f"{_api_base()}/rooms/shared-files", timeout=TIMEOUT,
                              **_auth_kwargs(sso_cookie_value, token))
     except requests.RequestException:
         return None
