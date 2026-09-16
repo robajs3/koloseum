@@ -215,6 +215,28 @@
   </div>
 </aside>
 
+<!-- ===== Modal podglądu pliku z panelu "Dysk" (globalny, dostępny z każdej strony) ===== -->
+<div id="fv-preview-modal" style="display:none;position:fixed;inset:0;z-index:1100;
+     background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--bg-card,#1c1c22);border-radius:10px;width:100%;max-width:900px;
+       height:85vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
+         border-bottom:1px solid var(--border,#2c2c34);flex-shrink:0">
+      <span id="fv-preview-title" style="font-weight:600;font-size:.9rem;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></span>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <a id="fv-preview-download-btn" href="#" target="_blank" rel="noopener"
+           class="btn btn-ghost btn-sm" title="Pobierz"><i class="fas fa-download"></i></a>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="closeFvPreview()" title="Zamknij">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+    <div id="fv-preview-body" style="flex:1;overflow:auto;min-height:0;display:flex;
+         align-items:center;justify-content:center"></div>
+  </div>
+</div>
+
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
   // Hamburger visible on mobile
@@ -346,12 +368,23 @@ function renderFvList(items, kind) {
       const badge = item.share_active
         ? '<span class="fv-badge fv-badge-ok"><i class="fas fa-link"></i> udostępniony</span>'
         : '<span class="fv-badge">zostanie udostępniony</span>';
+      // Oczko podglądu — tylko dla typów, które FileVault umie wyrenderować
+      // inline (obraz/pdf/wideo/audio, patrz is_previewable z /api/browse).
+      // stopPropagation, żeby kliknięcie oczka nie odpalało też kliknięcia
+      // wiersza (które udostępnia/wybiera plik — inna akcja).
+      const previewBtn = item.is_previewable
+        ? `<button type="button" class="fv-icon-btn fv-preview-btn" title="Podgląd"
+             onclick="event.stopPropagation(); previewFvFile(${item.id}, '${fvEscapeAttr(item.name)}', ${item.share_active ? `'${fvEscapeAttr(item.share_url)}'` : 'null'})">
+             <i class="fas fa-eye"></i>
+           </button>`
+        : '';
       return `<div class="fv-item" data-kind="file" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}">
         ${thumb}
         <div class="fv-item-info">
           <div class="fv-item-name">${fvEscapeHtml(item.name)}</div>
           <div class="fv-item-meta"><span>${item.size_human}</span>${badge}</div>
         </div>
+        ${previewBtn}
         <i class="fas fa-chevron-right fv-chevron"></i>
       </div>`;
     }
@@ -412,6 +445,99 @@ function applyFvPick(shareUrl, name, isFolder) {
   window.open(shareUrl, '_blank', 'noopener');
   closeFilevaultPanel();
 }
+
+// ===== Podgląd pliku prosto z panelu "Dysk" (bez wychodzenia z Koloseum) =====
+// Wcześniej kliknięcie pliku w panelu tylko go udostępniało/pobierało —
+// nie dawało w ogóle sposobu, żeby zerknąć na zawartość bez opuszczania
+// Koloseum. Oczko na liście (renderFvList, tylko dla item.is_previewable)
+// woła to poniżej, całkiem niezależnie od głównego "kliknięcia wiersza"
+// (które nadal robi to co wcześniej — udostępnia/wybiera plik).
+function previewFvFile(fileId, fileName, shareUrl) {
+  if (shareUrl) {
+    openFvPreviewModal(shareUrl + '/preview', fileName, shareUrl);
+    return;
+  }
+  // Plik nie ma jeszcze aktywnego udostępnienia (share_active=false) —
+  // trzeba je najpierw utworzyć, tak samo jak przy zwykłym wyborze pliku,
+  // dopiero potem można pokazać podgląd.
+  const url = FV_QUICK_SHARE_FILE_URL_TPL.replace(/\/0$/, '/' + fileId);
+  fetch(url, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.share_url) { alert('Nie udało się przygotować podglądu.'); return; }
+      openFvPreviewModal(data.share_url + '/preview', fileName, data.share_url);
+    })
+    .catch(() => alert('Błąd połączenia z FileVault.'));
+}
+
+function openFvPreviewModal(previewUrl, title, downloadUrl) {
+  const modal   = document.getElementById('fv-preview-modal');
+  const body    = document.getElementById('fv-preview-body');
+  const titleEl = document.getElementById('fv-preview-title');
+  const dlBtn   = document.getElementById('fv-preview-download-btn');
+
+  titleEl.textContent = title;
+  dlBtn.href = downloadUrl;
+
+  body.innerHTML = '';
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  const loader = document.createElement('div');
+  loader.style.cssText = 'display:flex;align-items:center;justify-content:center;'
+                        + 'flex-direction:column;gap:10px;height:100%;color:var(--text-muted)';
+  loader.innerHTML = '<div class="spinner"></div><div style="font-size:.82rem">Ładowanie podglądu…</div>';
+  body.appendChild(loader);
+
+  let loaded = false;
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'width:100%;height:100%;border:0;display:none';
+
+  // WAŻNE: iframe musi być w DOM PRZED ustawieniem .src, inaczej .src nie
+  // zaczyna wczytywania i onload nigdy się nie odpala (patrz identyczny
+  // fix w openLinkPreview() w templates/subjects/detail.html).
+  body.appendChild(iframe);
+
+  iframe.onload = function () {
+    loaded = true;
+    clearTimeout(timer);
+    body.innerHTML = '';
+    iframe.style.display = 'block';
+    body.appendChild(iframe);
+  };
+
+  const timer = setTimeout(function () {
+    if (!loaded) {
+      body.innerHTML = `
+        <div style="text-align:center;padding:40px;color:var(--text-muted)">
+          <i class="fas fa-triangle-exclamation" style="font-size:1.8rem;color:var(--warning,#e0a83a);margin-bottom:12px"></i>
+          <p style="font-size:.9rem;max-width:360px;margin:0 auto 14px">
+            Nie udało się wyświetlić podglądu. Otwórz plik bezpośrednio:
+          </p>
+          <a href="${downloadUrl}" target="_blank" rel="noopener" class="btn btn-primary btn-sm">
+            <i class="fas fa-external-link-alt"></i> Otwórz w FileVault
+          </a>
+        </div>`;
+    }
+  }, 4000);
+
+  iframe.src = previewUrl;
+}
+
+function closeFvPreview() {
+  document.getElementById('fv-preview-modal').style.display = 'none';
+  document.getElementById('fv-preview-body').innerHTML = '';
+  document.body.style.overflow = '';
+}
+
+document.getElementById('fv-preview-modal').addEventListener('click', function (e) {
+  if (e.target === this) closeFvPreview();
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape' && document.getElementById('fv-preview-modal').style.display === 'flex') {
+    closeFvPreview();
+  }
+});
 </script>
 {% block extra_scripts %}{% endblock %}
 </body>

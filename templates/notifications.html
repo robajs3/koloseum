@@ -216,7 +216,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Zgoda już jest — dbamy tylko, żeby subskrypcja push faktycznie
     // istniała na serwerze (np. po zmianie przeglądarki/urządzenia).
     // Nie pokazuje to żadnego promptu, bo permission jest już 'granted'.
-    setupPushNotifications();
+    // silent=true: to się dzieje przy KAŻDYM wejściu na tę stronę, więc
+    // user nie robił właśnie żadnej świadomej akcji — nie pokazujemy
+    // toastu "Powiadomienia włączone!" (wcześniej pokazywał się zawsze,
+    // nawet gdy user ma powiadomienia wyciszone w ustawieniach).
+    setupPushNotifications(true);
   }
 });
 </script>

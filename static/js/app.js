@@ -242,19 +242,27 @@ function isStandalonePwa() {
 // Push notification setup — wywoływane po kliknięciu przycisku (permission
 // prompt musi być odpowiedzią na gest użytkownika, inaczej przeglądarki go
 // blokują).
-async function setupPushNotifications() {
+// silent=true: cichy, automatyczny resync subskrypcji (np. przy każdym
+// wejściu na /notifications, żeby serwer miał aktualną subskrypcję po
+// zmianie urządzenia/przeglądarki) — NIE pokazuje żadnych toastów, bo
+// user nie wykonał w tym momencie żadnej świadomej akcji. Toasty mają
+// sens tylko przy silent=false: kliknięcie przycisku "Włącz powiadomienia
+// push" albo świeże zaakceptowanie natywnego prompta przeglądarki.
+async function setupPushNotifications(silent = false) {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    if (isIosSafari() && !isStandalonePwa()) {
-      showToast('Na iPhone/iPad: najpierw dodaj Koloseum do ekranu głównego (Udostępnij → Dodaj do ekranu początkowego), potem otwórz appkę z ikony i włącz powiadomienia.', 'info');
-    } else {
-      showToast('Ta przeglądarka nie wspiera powiadomień push.', 'warning');
+    if (!silent) {
+      if (isIosSafari() && !isStandalonePwa()) {
+        showToast('Na iPhone/iPad: najpierw dodaj Koloseum do ekranu głównego (Udostępnij → Dodaj do ekranu początkowego), potem otwórz appkę z ikony i włącz powiadomienia.', 'info');
+      } else {
+        showToast('Ta przeglądarka nie wspiera powiadomień push.', 'warning');
+      }
     }
     return;
   }
   try {
     const reg = await registerServiceWorker();
     if (!reg) {
-      showToast('Nie udało się zarejestrować Service Workera.', 'danger');
+      if (!silent) showToast('Nie udało się zarejestrować Service Workera.', 'danger');
       return;
     }
     await navigator.serviceWorker.ready;
@@ -262,13 +270,13 @@ async function setupPushNotifications() {
     const r = await fetch(window.PREFIX + '/profile/vapid-public-key');
     const { publicKey } = await r.json();
     if (!publicKey) {
-      showToast('Serwer nie ma skonfigurowanego VAPID_PUBLIC_KEY.', 'danger');
+      if (!silent) showToast('Serwer nie ma skonfigurowanego VAPID_PUBLIC_KEY.', 'danger');
       return;
     }
 
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') {
-      showToast('Nie zgodziłeś się na powiadomienia — nie mogę ich włączyć.', 'warning');
+      if (!silent) showToast('Nie zgodziłeś się na powiadomienia — nie mogę ich włączyć.', 'warning');
       return;
     }
 
@@ -286,13 +294,13 @@ async function setupPushNotifications() {
       body: JSON.stringify(sub),
     });
     if (resp.ok) {
-      showToast('Powiadomienia push włączone!', 'success');
+      if (!silent) showToast('Powiadomienia push włączone!', 'success');
     } else {
-      showToast('Serwer odrzucił subskrypcję push.', 'danger');
+      if (!silent) showToast('Serwer odrzucił subskrypcję push.', 'danger');
     }
   } catch (e) {
     console.warn('Push setup failed:', e);
-    showToast('Nie udało się włączyć powiadomień push.', 'danger');
+    if (!silent) showToast('Nie udało się włączyć powiadomień push.', 'danger');
   }
 }
 
