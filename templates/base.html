@@ -508,6 +508,32 @@ function openFvPreviewModal(previewUrl, title, downloadUrl) {
     clearTimeout(timer);
     loader.remove();
     iframe.style.display = 'block';
+
+    // FileVault stoi na tym samym originie co Koloseum (ta sama domena,
+    // inny prefix ścieżki) — więc mimo że treść wczytuje się z innej
+    // appki, to wciąż same-origin i wolno nam dotknąć jej dokumentu.
+    // Bez tego przeglądarka renderuje obrazek/wideo w domyślnym
+    // "image document" viewerze w naturalnym rozmiarze pliku (często
+    // dużo większym niż okno podglądu) — stąd wrażenie "powiększonego"
+    // zdjęcia. Doinstalowujemy styl, który skaluje je do wnętrza ramki,
+    // zachowując proporcje.
+    try {
+      const doc = iframe.contentDocument;
+      if (doc) {
+        const style = doc.createElement('style');
+        style.textContent = `
+          html, body { margin:0; height:100%; overflow:auto; }
+          body { display:flex; align-items:center; justify-content:center;
+                 min-height:100%; background:transparent; }
+          img, video { max-width:100%; max-height:100vh; width:auto; height:auto;
+                       object-fit:contain; }
+        `;
+        doc.head.appendChild(style);
+      }
+    } catch (e) {
+      // Nie powinno się zdarzyć (same-origin), ale na wszelki wypadek
+      // nie chcemy wywalić całego podglądu przez to.
+    }
   };
 
   const timer = setTimeout(function () {
