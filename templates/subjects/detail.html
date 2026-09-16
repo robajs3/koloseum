@@ -803,12 +803,18 @@ function openLinkPreview(link, title) {
   // (ukrywamy go razem z iframe'em na starcie), a po onload podmieniamy.
   body.appendChild(iframe);
 
+  // WAŻNE #2: onload NIE MOŻE robić body.innerHTML = '' — iframe jest
+  // dzieckiem body, więc to by go odłączyło od DOM, a natychmiastowe
+  // ponowne appendChild(iframe) każe przeglądarce PRZEŁADOWAĆ iframe
+  // (odłączenie+podłączenie z powrotem resetuje jego kontekst) — co znowu
+  // odpala onload, który znowu robi innerHTML='', w kółko. Efekt: iframe
+  // migał/mrugał (ciągły cykl przeładowań). Usuwamy więc tylko loader,
+  // a iframe zostaje tam, gdzie jest — ani razu więcej go nie przenosimy.
   iframe.onload = function () {
     loaded = true;
     clearTimeout(timer);
-    body.innerHTML = '';
+    loader.remove();
     iframe.style.display = 'block';
-    body.appendChild(iframe);
   };
 
   // Jak przy podglądzie folderu: jeśli FileVault zablokuje osadzanie

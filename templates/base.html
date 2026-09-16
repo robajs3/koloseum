@@ -498,12 +498,16 @@ function openFvPreviewModal(previewUrl, title, downloadUrl) {
   // fix w openLinkPreview() w templates/subjects/detail.html).
   body.appendChild(iframe);
 
+  // Ten sam fix co w openLinkPreview() (templates/subjects/detail.html):
+  // onload NIE MOŻE robić body.innerHTML='' — to odłącza iframe (jest
+  // dzieckiem body), a natychmiastowe appendChild(iframe) z powrotem każe
+  // przeglądarce go przeładować, co znowu odpala onload -> w kółko ->
+  // wizualne mruganie. Usuwamy tylko loader, iframe zostaje na miejscu.
   iframe.onload = function () {
     loaded = true;
     clearTimeout(timer);
-    body.innerHTML = '';
+    loader.remove();
     iframe.style.display = 'block';
-    body.appendChild(iframe);
   };
 
   const timer = setTimeout(function () {
