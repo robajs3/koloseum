@@ -1,6 +1,6 @@
 import json
 from datetime import timedelta
-from models import db, Notification, RoomMember, User, Exam, ExamReminderLog
+from models import db, Notification, RoomMember, Room, User, Exam, ExamReminderLog
 from flask import current_app
 from utils.timezone import utc_now, to_local
 
@@ -117,6 +117,50 @@ class NotificationService:
     def save_push_subscription(user: User, subscription: dict) -> None:
         user.push_subscription = json.dumps(subscription)
         db.session.commit()
+
+    @staticmethod
+    def send_admin_notification(target: str, title: str, body: str,
+                                 user_id: int = None, room_id: int = None) -> int:
+        """Ręczne powiadomienie wysyłane przez admina z panelu (/admin).
+
+        target: 'user'  -> tylko user o id=user_id
+                'room'   -> wszyscy członkowie pokoju (grupy) o id=room_id
+                'all'    -> wszyscy userzy w systemie
+
+        Zwraca liczbę userów, do których faktycznie wysłano powiadomienie
+        (0 gdy cel nie istnieje / grupa nie ma członków — kontroler pokazuje
+        wtedy stosowny komunikat).
+        """
+        title = (title or "").strip()
+        body = (body or "").strip()
+        if not title or not body:
+            return 0
+
+        if target == "user":
+            user = User.query.get(user_id) if user_id else None
+            if not user:
+                return 0
+            recipients = [user]
+        elif target == "room":
+            room = Room.query.get(room_id) if room_id else None
+            if not room:
+                return 0
+            recipients = [m.user for m in room.members if m.user]
+        elif target == "all":
+            recipients = User.query.all()
+        else:
+            return 0
+
+        sent = 0
+        for recipient in recipients:
+            NotificationService.create_notification(
+                user=recipient,
+                title=title,
+                body=body,
+                notif_type="admin",
+            )
+            sent += 1
+        return sent
 
     @staticmethod
     def check_and_send_exam_reminders() -> None:

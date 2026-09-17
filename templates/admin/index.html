@@ -123,6 +123,71 @@
   </div>
 </div>
 
+<!-- ── Powiadomienia push ── -->
+<div class="card mb-4">
+  <div class="card-header">
+    <h3><i class="fas fa-paper-plane" style="color:var(--primary);margin-right:8px"></i>Wyślij powiadomienie push</h3>
+  </div>
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('admin.send_notification') }}"
+          style="background:var(--bg-secondary,#f8f9fa);border:1px solid var(--border);border-radius:10px;padding:18px 20px">
+
+      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+        <label class="notif-target-option" style="display:flex;align-items:center;gap:6px;font-size:.85rem;
+               border:1px solid var(--border);border-radius:8px;padding:8px 14px;cursor:pointer">
+          <input type="radio" name="target" value="all" checked onchange="notifTargetChanged()">
+          <i class="fas fa-globe" style="color:var(--primary)"></i> Wszyscy użytkownicy
+        </label>
+        <label class="notif-target-option" style="display:flex;align-items:center;gap:6px;font-size:.85rem;
+               border:1px solid var(--border);border-radius:8px;padding:8px 14px;cursor:pointer">
+          <input type="radio" name="target" value="user" onchange="notifTargetChanged()">
+          <i class="fas fa-user" style="color:var(--secondary)"></i> Konkretny użytkownik
+        </label>
+        <label class="notif-target-option" style="display:flex;align-items:center;gap:6px;font-size:.85rem;
+               border:1px solid var(--border);border-radius:8px;padding:8px 14px;cursor:pointer">
+          <input type="radio" name="target" value="room" onchange="notifTargetChanged()">
+          <i class="fas fa-door-open" style="color:var(--warning)"></i> Grupa (pokój)
+        </label>
+      </div>
+
+      <div id="notif-user-select" style="display:none;margin-bottom:10px">
+        <select name="user_id" class="form-control">
+          <option value="">— wybierz użytkownika —</option>
+          {% for user in users %}
+          <option value="{{ user.id }}">{{ user.username }} ({{ user.email }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div id="notif-room-select" style="display:none;margin-bottom:10px">
+        <select name="room_id" class="form-control">
+          <option value="">— wybierz grupę —</option>
+          {% for room in rooms %}
+          <option value="{{ room.id }}">{{ room.name }} ({{ room.members|length }} członków)</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <input type="text" name="title" class="form-control" placeholder="Tytuł powiadomienia…" required
+             maxlength="256" style="font-weight:500;margin-bottom:10px">
+      <textarea name="body" class="form-control" placeholder="Treść powiadomienia…" rows="2"
+                required style="margin-bottom:12px;resize:vertical"></textarea>
+
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="fas fa-paper-plane"></i> Wyślij powiadomienie
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+function notifTargetChanged() {
+  const target = document.querySelector('input[name="target"]:checked').value;
+  document.getElementById('notif-user-select').style.display = (target === 'user') ? 'block' : 'none';
+  document.getElementById('notif-room-select').style.display = (target === 'room') ? 'block' : 'none';
+}
+</script>
+
 <!-- Users table -->
 <div class="card mb-4">
   <div class="card-header">

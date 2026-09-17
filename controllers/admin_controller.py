@@ -5,6 +5,7 @@ from models.announcement_model import Announcement
 from datetime import datetime
 from functools import wraps
 from utils.timezone import to_utc
+from services.notification_service import NotificationService
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -112,4 +113,43 @@ def delete_announcement(ann_id: int):
     db.session.delete(ann)
     db.session.commit()
     flash(f'Ogłoszenie „{title}" zostało usunięte.', "success")
+    return redirect(url_for("admin.index"))
+
+# ── Powiadomienia push (ręczne, z panelu admina) ────────────────────────────────
+
+@admin_bp.route("/notifications/send", methods=["POST"])
+@login_required
+@admin_required
+def send_notification():
+    target = request.form.get("target", "all")
+    title = request.form.get("title", "").strip()
+    body = request.form.get("body", "").strip()
+    user_id = request.form.get("user_id", type=int)
+    room_id = request.form.get("room_id", type=int)
+
+    if not title or not body:
+        flash("Tytuł i treść powiadomienia są wymagane.", "danger")
+        return redirect(url_for("admin.index"))
+
+    if target == "user" and not user_id:
+        flash("Wybierz użytkownika, do którego chcesz wysłać powiadomienie.", "danger")
+        return redirect(url_for("admin.index"))
+
+    if target == "room" and not room_id:
+        flash("Wybierz grupę, do której chcesz wysłać powiadomienie.", "danger")
+        return redirect(url_for("admin.index"))
+
+    sent = NotificationService.send_admin_notification(
+        target=target, title=title, body=body, user_id=user_id, room_id=room_id,
+    )
+
+    if sent:
+        who = {
+            "user": "użytkownika",
+            "room": f"{sent} członk(ów) grupy",
+            "all": f"wszystkich użytkowników ({sent})",
+        }.get(target, f"{sent} odbiorców")
+        flash(f"Powiadomienie zostało wysłane do: {who}.", "success")
+    else:
+        flash("Nie znaleziono odbiorców — powiadomienie nie zostało wysłane.", "warning")
     return redirect(url_for("admin.index"))
