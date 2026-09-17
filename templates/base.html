@@ -270,8 +270,15 @@
   </div>
 </aside>
 
-<!-- ===== Modal podglądu pliku z panelu "Dysk" (globalny, dostępny z każdej strony) ===== -->
-<div id="fv-preview-modal" style="display:none;position:fixed;inset:0;z-index:1100;
+<!-- ===== Modal podglądu pliku z panelu "Dysk" (globalny, dostępny z każdej strony) =====
+     UWAGA: z-index MUSI być wyższy niż .fv-backdrop/.fv-drawer (1200/1201).
+     Wcześniej modal miał z-index:1100 — niższy niż rozmyty .fv-backdrop panelu
+     "Dysk", więc gdy panel był otwarty, podgląd renderował się POD tym
+     rozmytym tłem i wyglądał na rozmazany, dopóki panel się nie zamykał
+     (znikał wtedy .fv-backdrop). Patrz też closeFilevaultPanel() w
+     openFvPreviewModal() niżej, który dodatkowo zamyka panel "Dysk" przy
+     otwieraniu podglądu, żeby nie stały otwarte oba naraz. -->
+<div id="fv-preview-modal" style="display:none;position:fixed;inset:0;z-index:1300;
      background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--bg-card,#1c1c22);border-radius:10px;width:100%;max-width:900px;
        height:85vh;display:flex;flex-direction:column;overflow:hidden">
@@ -836,6 +843,13 @@ function previewFvFile(fileId, fileName, shareUrl) {
 }
 
 function openFvPreviewModal(previewUrl, title, downloadUrl) {
+  // Zamknij panel "Dysk", jeśli był otwarty — patrz komentarz przy
+  // #fv-preview-modal wyżej: dwa nakładające się na siebie wysuwane
+  // panele/modale nie mają sensu, a to też strzeże przed powrotem buga
+  // z rozmazanym podglądem, gdyby ktoś w przyszłości znów obniżył
+  // z-index modala.
+  if (typeof fvOpen !== 'undefined' && fvOpen) closeFilevaultPanel();
+
   const modal   = document.getElementById('fv-preview-modal');
   const body    = document.getElementById('fv-preview-body');
   const titleEl = document.getElementById('fv-preview-title');

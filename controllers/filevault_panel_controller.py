@@ -30,21 +30,6 @@ def browse():
     return jsonify(data)
 
 
-@filevault_panel_bp.route("/filevault-panel/folder/<int:folder_id>")
-@login_required
-def folder_contents(folder_id: int):
-    """Zawartość jednego folderu (drill-down w zakładce 'Foldery' panelu 'Dysk')."""
-    sso_cookie = _sso_cookie()
-    if not sso_cookie and not current_user.filevault_api_token:
-        return jsonify({"error": "not_linked"}), 400
-    data = filevault_client.folder_files(
-        folder_id, sso_cookie_value=sso_cookie, token=current_user.filevault_api_token
-    )
-    if data is None:
-        return jsonify({"error": "unavailable"}), 502
-    return jsonify(data)
-
-
 @filevault_panel_bp.route("/filevault-panel/rooms")
 @login_required
 def rooms():
