@@ -53,3 +53,38 @@ def to_utc(dt: datetime | None) -> datetime | None:
         return None
     aware_local = dt.replace(tzinfo=APP_TZ)
     return aware_local.astimezone(_UTC).replace(tzinfo=None)
+
+
+_MONTHS_PL_GENITIVE = [
+    "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
+    "lipca", "sierpnia", "września", "października", "listopada", "grudnia",
+]
+
+
+def day_label(dt: datetime | None) -> str:
+    """Etykieta dnia do separatorów w czacie ('Dzisiaj' / 'Wczoraj' / data),
+    liczona względem czasu lokalnego (Europe/Warsaw) — tak żeby np.
+    wiadomość z 12:00 poprzedniego dnia wyraźnie odróżniała się od
+    wiadomości z 9:00 dzisiaj, nawet gdy w porze wysłania nie widać tego
+    na pierwszy rzut oka (patrz static/js/chat_widget.js: chat-day-divider)."""
+    if dt is None:
+        return ""
+    local_dt = to_local(dt)
+    today = to_local(utc_now()).date()
+    d = local_dt.date()
+    diff = (today - d).days
+    if diff == 0:
+        return "Dzisiaj"
+    if diff == 1:
+        return "Wczoraj"
+    if d.year == today.year:
+        return f"{d.day} {_MONTHS_PL_GENITIVE[d.month - 1]}"
+    return f"{d.day} {_MONTHS_PL_GENITIVE[d.month - 1]} {d.year}"
+
+
+def day_key(dt: datetime | None) -> str:
+    """Klucz dnia (YYYY-MM-DD w czasie lokalnym) do grupowania wiadomości
+    po stronie frontu — patrz day_label wyżej."""
+    if dt is None:
+        return ""
+    return to_local(dt).date().isoformat()

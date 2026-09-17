@@ -259,6 +259,10 @@
       <i class="fas fa-user"></i> Wiadomości
       <span class="badge chat-dm-tab-badge" id="chat-dm-tab-badge" style="display:none"></span>
     </button>
+    <button type="button" class="fv-tab-btn" id="chat-tab-tickets" onclick="switchChatTab('tickets')">
+      <i class="fas fa-life-ring"></i> Zgłoszenia
+      <span class="badge chat-dm-tab-badge" id="chat-tickets-tab-badge" style="display:none"></span>
+    </button>
   </div>
 
   <div class="fv-drawer-body" id="chat-drawer-body">
@@ -293,6 +297,11 @@
 const CHAT_PANEL_DATA_URL = "{{ url_for('chat.panel_data') }}";
 const CHAT_SUBJECT_MESSAGES_URL_TPL = "{{ url_for('chat.subject_messages', subject_id=0) }}";
 const CHAT_DM_MESSAGES_URL_TPL = "{{ url_for('chat.dm_messages', user_id=0) }}";
+const CHAT_TICKETS_URL = "{{ url_for('chat.list_tickets') }}";
+const CHAT_TICKET_DETAIL_URL_TPL = "{{ url_for('chat.ticket_detail', ticket_id=0) }}";
+const CHAT_TICKET_REPLIES_URL_TPL = "{{ url_for('chat.add_ticket_reply', ticket_id=0) }}";
+const CHAT_TICKET_STATUS_URL_TPL = "{{ url_for('chat.set_ticket_status', ticket_id=0) }}";
+const CHAT_CURRENT_USER_IS_ADMIN = {{ 'true' if current_user.is_authenticated and current_user.is_global_admin else 'false' }};
 const CHAT_CURRENT_USER_ID = {{ current_user.id if current_user.is_authenticated else 'null' }};
 </script>
 <script src="{{ url_for('static', filename='js/chat_widget.js') }}"></script>

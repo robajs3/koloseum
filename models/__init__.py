@@ -7,6 +7,7 @@ from models.room_model import Room, RoomMember, Subject
 from models.exam_model import Exam, ChatMessage, ChatAttachment, StudyMaterial, Notification, ExamReminderLog
 from models.announcement_model import Announcement
 from models.message_model import DirectMessage
+from models.ticket_model import Ticket, TicketReply
 
 __all__ = [
     "db",
@@ -22,4 +23,6 @@ __all__ = [
     "ExamReminderLog",
     "Announcement",
     "DirectMessage",
+    "Ticket",
+    "TicketReply",
 ]
