@@ -1130,6 +1130,7 @@ tr:hover td { background: var(--primary-light); }
   flex-shrink: 0;
 }
 .fv-share-btn { color: var(--primary); }
+.fv-download-btn { color: var(--secondary); }
 
 .fv-thumb {
   width: 44px;
@@ -1256,6 +1257,52 @@ tr:hover td { background: var(--primary-light); }
 
 @media (max-width: 768px) {
   .fv-drawer { width: 100%; max-width: 100%; }
+}
+
+/* ── Pływający cel przeciągania (patrz komentarz w base.html przy
+   #fv-drop-target) — musi mieć z-index WYŻSZY niż .fv-backdrop (1200) i
+   .fv-drawer (1201), żeby stać ponad rozmytym tłem i realnie łapać drop. ── */
+.fv-drop-target {
+  position: fixed;
+  left: 380px;
+  right: 20px;
+  bottom: 24px;
+  margin: 0 auto;
+  width: fit-content;
+  max-width: min(360px, calc(100vw - 420px));
+  z-index: 1210;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px;
+  border-radius: 999px;
+  background: var(--bg-card);
+  border: 2px dashed var(--primary);
+  color: var(--text);
+  font-size: .85rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  transform: translateY(14px) scale(.96);
+  pointer-events: none;
+  transition: opacity .16s ease, transform .16s ease, background .15s ease, border-color .15s ease;
+}
+.fv-drop-target i { color: var(--primary); font-size: 1.05rem; flex-shrink: 0; }
+.fv-drop-target.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+.fv-drop-target.fv-dropzone-active {
+  background: var(--primary-light);
+  border-style: solid;
+  transform: translateY(0) scale(1.05);
+}
+/* Na wąskim ekranie szuflada zajmuje 100% szerokości (patrz wyżej), więc
+   nie ma gdzie sensownie postawić pływającego celu obok niej — a poza tym
+   drag & drop z HTML5 i tak zwykle nie działa na dotyku. */
+@media (max-width: 768px) {
+  .fv-drop-target { display: none; }
 }
 
 /* ===== PANEL "CZAT" — dymki i formularz w widoku rozmowy ===== */

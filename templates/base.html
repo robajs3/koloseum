@@ -224,7 +224,8 @@
 
   <div class="fv-drawer-hint" id="fv-drawer-hint">
     <i class="fas fa-arrows-up-down-left-right"></i>
-    Przeciągnij plik lub folder na "Materiały" w przedmiocie, aby go tam dodać i od razu udostępnić.
+    Przeciągnij plik lub folder — na stronie przedmiotu pojawi się miejsce,
+    w które możesz go upuścić, żeby dodać go do materiałów i od razu udostępnić.
   </div>
 
   <div class="fv-drawer-body" id="filevault-panel-body">
@@ -233,6 +234,31 @@
 
   <div id="fv-toast" class="fv-toast"></div>
 </aside>
+
+<!-- ===== PŁYWAJĄCY CEL PRZECIĄGANIA (patrz window.FvDnD w <script> niżej) =====
+     PROBLEM: .fv-backdrop (rozmyte, przyciemnione tło panelu "Dysk") leży
+     na CAŁYM viewporcie (position:fixed;inset:0) z z-index:1200 i, gdy panel
+     jest otwarty, ma pointer-events:auto — więc kiedy user przeciąga plik z
+     szuflady w stronę reszty strony (np. zakładki "Materiały" przedmiotu),
+     tak naprawdę przeciąga go NAD tym rozmytym tłem, a nie nad właściwą
+     stroną: docelowy element (#pane-materials, patrz FvDnD.attach w
+     subjects/detail.html) w ogóle nie dostaje zdarzeń dragover/drop, bo leży
+     WIZUALNIE i W STOSIE WARSTW pod backdropem. Same rozmycie samo w sobie
+     jest celowym, ładnym efektem (skupia uwagę na szufladzie) i go nie
+     ruszamy — kompromisem jest osobny, mały, zawsze OSTRY (bo leży NAD
+     backdropem, backdrop-filter blur dotyczy tylko renderowania samego
+     .fv-backdrop) element, który:
+       - jest niewidoczny/nieklikalny, dopóki nic się nie przeciąga,
+       - pokazuje się TYLKO, gdy bieżąca strona faktycznie zarejestrowała cel
+         (window.FvDnD._current, patrz FvDnD.attach) — więc np. na stronie
+         bez zakładki "Materiały" w ogóle się nie pojawi,
+       - ma z-index wyższy niż .fv-backdrop I .fv-drawer, więc REALNIE
+         odbiera zdarzenia dragover/drop niezależnie od tego, że reszta
+         strony jest zasłonięta/rozmyta pod spodem. -->
+<div id="fv-drop-target" class="fv-drop-target">
+  <i class="fas fa-inbox"></i>
+  <span id="fv-drop-target-label">Upuść tutaj, aby dodać do materiałów</span>
+</div>
 
 <!-- ===== PANEL "CZAT" — wysuwany z lewej, dostępny z każdej strony ===== -->
 <div id="chat-backdrop" class="fv-backdrop" onclick="closeChatPanel()"></div>
@@ -507,16 +533,17 @@ function fvFileItemHtml(item) {
   // funkcja jest wspólna, więc po prostu pokazujemy, gdy fvActiveTab==='files'.
   const folderHint = (fvActiveTab === 'files' && item.folder_id) ? fvFolderLabel(item.folder_id) : null;
   const folderMeta = folderHint ? `<span><i class="fas fa-folder"></i> ${fvEscapeHtml(folderHint)}</span>` : '';
-  // Oczko podglądu — tylko dla typów, które FileVault umie wyrenderować
-  // inline (obraz/pdf/wideo/audio, patrz is_previewable z /api/browse).
-  // stopPropagation, żeby kliknięcie oczka nie odpalało też kliknięcia
-  // wiersza (które udostępnia/wybiera plik — inna akcja).
-  const previewBtn = item.is_previewable
-    ? `<button type="button" class="fv-icon-btn fv-preview-btn" title="Podgląd"
-         onclick="event.stopPropagation(); previewFvFile(${item.id}, '${fvEscapeAttr(item.name)}', ${item.share_active ? `'${fvEscapeAttr(item.share_url)}'` : 'null'})">
-         <i class="fas fa-eye"></i>
-       </button>`
-    : '';
+  // Przycisk "Pobierz" — w miejscu dawnej ikonki "Podgląd" (oczko). Klik na
+  // WIERSZ otwiera teraz sam podgląd w trybie zwykłego przeglądania (patrz
+  // listener kliknięcia niżej), więc podgląd nie potrzebuje już własnego,
+  // osobnego przycisku — a pobieranie owszem, bo nic innego już go nie robi.
+  // Widoczny zawsze (nie tylko dla is_previewable), żeby pliki bez podglądu
+  // (zip, docx itd.) też dało się łatwo pobrać. stopPropagation, żeby klik
+  // na przycisk nie odpalał też kliknięcia wiersza.
+  const downloadBtn = `<button type="button" class="fv-icon-btn fv-download-btn" title="Pobierz"
+       onclick="event.stopPropagation(); downloadFvFile(${item.id}, '${fvEscapeAttr(item.name)}', ${item.share_active ? `'${fvEscapeAttr(item.share_url)}'` : 'null'})">
+       <i class="fas fa-download"></i>
+     </button>`;
   const shareBtn = !item.share_active
     ? `<button type="button" class="fv-icon-btn fv-share-btn" title="Udostępnij"
          onclick="event.stopPropagation(); quickShareFile(${item.id}, '${fvEscapeAttr(item.name)}')">
@@ -527,13 +554,16 @@ function fvFileItemHtml(item) {
          <i class="fas fa-link"></i>
        </button>`;
   const payload = fvEscapeAttr(JSON.stringify({ kind: 'file', id: item.id, name: item.name }));
-  return `<div class="fv-item" draggable="true" data-kind="file" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}" data-payload="${payload}">
+  return `<div class="fv-item" draggable="true" data-kind="file" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}"
+       data-previewable="${item.is_previewable ? 'true' : 'false'}"
+       data-share-url="${item.share_active ? fvEscapeAttr(item.share_url) : ''}"
+       data-payload="${payload}">
     ${thumb}
     <div class="fv-item-info">
       <div class="fv-item-name">${fvEscapeHtml(item.name)}</div>
       <div class="fv-item-meta"><span>${item.size_human}</span>${folderMeta}${badge}</div>
     </div>
-    <div class="fv-item-actions">${previewBtn}${shareBtn}</div>
+    <div class="fv-item-actions">${downloadBtn}${shareBtn}</div>
   </div>`;
 }
 
@@ -614,24 +644,27 @@ function fvRoomFileItemHtml(item) {
   const bits = [item.size_human];
   if (item.folder_path) bits.push(`<i class="fas fa-folder"></i> ${fvEscapeHtml(item.folder_path)}`);
   if (item.uploaded_by) bits.push(fvEscapeHtml(item.uploaded_by));
-  const previewBtn = (item.is_previewable && item.preview_url)
-    ? `<button type="button" class="fv-icon-btn fv-preview-btn" title="Podgląd"
-         onclick="event.stopPropagation(); openFvPreviewModal('${fvEscapeAttr(item.preview_url)}', '${fvEscapeAttr(item.name)}', '${fvEscapeAttr(item.download_url)}')">
-         <i class="fas fa-eye"></i>
-       </button>`
-    : '';
+  // Przycisk "Pobierz" w miejscu dawnej ikonki podglądu — patrz identyczny
+  // komentarz w fvFileItemHtml wyżej. Tu zawsze mamy download_url, więc
+  // przycisk jest zawsze widoczny (nie tylko dla is_previewable).
+  const downloadBtn = `<button type="button" class="fv-icon-btn fv-download-btn" title="Pobierz"
+       onclick="event.stopPropagation(); window.open('${fvEscapeAttr(item.download_url)}', '_blank', 'noopener')">
+       <i class="fas fa-download"></i>
+     </button>`;
   // Pliki pokoju są już dostępne dla każdego członka (patrz
   // controllers/files.py:_get_file_with_access we FileVault) — nie ma tu
   // czego "udostępniać" osobno, dlatego brak przycisku share/badge.
   const payload = fvEscapeAttr(JSON.stringify({ kind: 'room_file', id: item.id, name: item.name, url: item.download_url }));
   return `<div class="fv-item" draggable="true" data-kind="room_file" data-id="${item.id}" data-name="${fvEscapeAttr(item.name)}"
-       data-url="${fvEscapeAttr(item.download_url)}" data-payload="${payload}">
+       data-url="${fvEscapeAttr(item.download_url)}" data-payload="${payload}"
+       data-previewable="${(item.is_previewable && item.preview_url) ? 'true' : 'false'}"
+       data-preview-url="${item.preview_url ? fvEscapeAttr(item.preview_url) : ''}">
     ${thumb}
     <div class="fv-item-info">
       <div class="fv-item-name">${fvEscapeHtml(item.name)}</div>
       <div class="fv-item-meta"><span>${bits.join(' · ')}</span></div>
     </div>
-    <div class="fv-item-actions">${previewBtn}</div>
+    <div class="fv-item-actions">${downloadBtn}</div>
   </div>`;
 }
 
@@ -643,7 +676,22 @@ document.getElementById('filevault-panel-body').addEventListener('click', functi
   const name = row.dataset.name;
   const kind = row.dataset.kind;
   if (kind === 'file') {
-    pickFvFile(id, name);
+    if (fvTarget) {
+      // Tryb wyboru pliku dla strony przedmiotu ("Wybierz z FileVault" przy
+      // materiale/folderze) — klik wybiera plik, dokładnie jak dotychczas.
+      pickFvFile(id, name);
+    } else {
+      // Zwykłe przeglądanie z nawigacji "Dysk" (fvTarget===null): klik ma
+      // pokazać PODGLĄD, a nie od razu udostępniać/otwierać plik (co w
+      // praktyce działało jak natychmiastowe pobranie). Do pobrania służy
+      // teraz osobny przycisk "Pobierz" przy elemencie (patrz
+      // fvFileItemHtml) — w miejscu dawnej ikonki podglądu.
+      if (row.dataset.previewable === 'true') {
+        previewFvFile(id, name, row.dataset.shareUrl || null);
+      }
+      // Dla plików bez podglądu klik na wiersz celowo nic nie robi —
+      // pobranie jest dostępne przyciskiem "Pobierz".
+    }
   } else if (kind === 'folder') {
     // Poza trybem "wybierania folderu" (fvTarget==='folder') klik na folder
     // WCHODZI do niego (pokazuje wszystkie jego pliki) zamiast go od razu
@@ -654,9 +702,34 @@ document.getElementById('filevault-panel-body').addEventListener('click', functi
       fvOpenFolder(id);
     }
   } else if (kind === 'room_file') {
-    applyFvPick(row.dataset.url, name);
+    if (fvTarget) {
+      applyFvPick(row.dataset.url, name);
+    } else if (row.dataset.previewable === 'true') {
+      openFvPreviewModal(row.dataset.previewUrl, name, row.dataset.url);
+    }
+    // Bez podglądu i bez trybu wyboru: nic — pobranie przyciskiem "Pobierz".
   }
 });
+
+// Pobieranie pliku bezpośrednio z panelu "Dysk" (przycisk w miejscu dawnej
+// ikonki podglądu — patrz fvFileItemHtml). Jeśli plik nie ma jeszcze
+// aktywnego udostępnienia, trzeba je najpierw utworzyć (dokładnie jak przy
+// wyborze/podglądzie pliku), dopiero potem można go pobrać.
+function downloadFvFile(fileId, fileName, shareUrl) {
+  if (shareUrl) {
+    window.open(shareUrl, '_blank', 'noopener');
+    return;
+  }
+  const url = FV_QUICK_SHARE_FILE_URL_TPL.replace(/\/0$/, '/' + fileId);
+  fetch(url, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.share_url) { alert('Nie udało się przygotować pobierania.'); return; }
+      fvUpdateFileShare(fileId, data.share_url);
+      window.open(data.share_url, '_blank', 'noopener');
+    })
+    .catch(() => alert('Błąd połączenia z FileVault.'));
+}
 
 // ===== Przeciąganie (drag & drop) elementów listy — patrz window.FvDnD
 // niżej, które łapie drop na stronie docelowej (np. "Materiały" przedmiotu). =====
@@ -667,11 +740,51 @@ document.getElementById('filevault-panel-body').addEventListener('dragstart', fu
   e.dataTransfer.setData('application/json', row.dataset.payload);
   e.dataTransfer.setData('text/plain', row.dataset.name || '');
   row.classList.add('fv-dragging');
+  fvShowDropTarget();
 });
 document.getElementById('filevault-panel-body').addEventListener('dragend', function(e) {
   const row = e.target.closest('.fv-item');
   if (row) row.classList.remove('fv-dragging');
+  fvHideDropTarget();
 });
+
+// ===== Pływający cel przeciągania (#fv-drop-target) — patrz komentarz przy
+// jego znaczniku HTML wyżej oraz przy window.FvDnD._current. Pokazuje się
+// tylko, jeśli bieżąca strona zarejestrowała jakiś cel (np. zakładka
+// "Materiały" przedmiotu), i tylko na czas trwania przeciągania. =====
+const fvDropTarget = document.getElementById('fv-drop-target');
+const fvDropTargetLabel = document.getElementById('fv-drop-target-label');
+
+function fvShowDropTarget() {
+  if (!fvDropTarget || !window.FvDnD._current) return; // strona nie ma gdzie upuścić
+  if (fvDropTargetLabel) fvDropTargetLabel.textContent = window.FvDnD._current.label;
+  fvDropTarget.classList.add('visible');
+}
+function fvHideDropTarget() {
+  if (!fvDropTarget) return;
+  fvDropTarget.classList.remove('visible', 'fv-dropzone-active');
+}
+if (fvDropTarget) {
+  fvDropTarget.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    fvDropTarget.classList.add('fv-dropzone-active');
+  });
+  fvDropTarget.addEventListener('dragleave', e => {
+    if (e.target === fvDropTarget) fvDropTarget.classList.remove('fv-dropzone-active');
+  });
+  fvDropTarget.addEventListener('drop', e => {
+    e.preventDefault();
+    fvDropTarget.classList.remove('fv-dropzone-active');
+    if (!window.FvDnD._current) return;
+    const raw = e.dataTransfer.getData('application/json');
+    if (!raw) return;
+    let payload;
+    try { payload = JSON.parse(raw); } catch (err) { return; }
+    window.FvDnD._resolve(payload, window.FvDnD._current.handlers);
+    fvHideDropTarget();
+  });
+}
 
 function pickFvFile(fileId, fileName) {
   const url = FV_QUICK_SHARE_FILE_URL_TPL.replace(/\/0$/, '/' + fileId);
@@ -769,10 +882,20 @@ function applyFvPick(shareUrl, name, isFolder) {
 // dla członków pokoju, więc używamy ich linku wprost, bez dodatkowego
 // wywołania udostępniania.
 //
-// Użycie: FvDnD.attach(elementDOM, { onFile(shareUrl, name), onFolder(shareUrl, name) })
+// Użycie: FvDnD.attach(elementDOM, { onFile(shareUrl, name), onFolder(shareUrl, name) }, { label: '...' })
+// Trzeci argument (opcjonalny) pozwala dostosować tekst pływającego celu
+// przeciągania (#fv-drop-target, patrz komentarz w HTML wyżej) do kontekstu
+// strony — domyślny tekst jest neutralny.
 window.FvDnD = {
-  attach(el, handlers) {
+  _current: null, // { handlers, label } — ostatnio zarejestrowany cel na TEJ stronie
+  attach(el, handlers, opts) {
     if (!el) return;
+    this._current = { handlers, label: (opts && opts.label) || 'Upuść tutaj, aby dodać do materiałów' };
+    // Nasłuch na oryginalnym elemencie zostaje jako dodatkowa, "prawdziwa"
+    // strefa upuszczania (np. gdyby kiedyś panel "Dysk" przestał zasłaniać
+    // stronę pełnym backdropem) — w praktyce, dopóki panel jest wysuwany z
+    // rozmytym tłem NAD całą stroną, to pływający #fv-drop-target (patrz
+    // niżej) faktycznie łapie drop, bo el leży pod backdropem.
     el.addEventListener('dragover', e => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
