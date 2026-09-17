@@ -5,7 +5,7 @@ from flask import Flask, render_template, redirect, url_for, abort, send_from_di
 from flask_login import LoginManager, current_user, login_user
 from config import Config
 from models import db, User
-from controllers import auth_bp, dashboard_bp, room_bp, subject_bp, profile_bp, notification_bp, admin_bp, export_api_bp, filevault_panel_bp
+from controllers import auth_bp, dashboard_bp, room_bp, subject_bp, profile_bp, notification_bp, admin_bp, export_api_bp, filevault_panel_bp, chat_bp
 from utils.timezone import to_local
 import sso_client
 
@@ -110,6 +110,7 @@ def create_app(config_class=Config) -> Flask:
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(export_api_bp)
     app.register_blueprint(filevault_panel_bp)
+    app.register_blueprint(chat_bp)
 
     # Root redirect
     @app.route("/")
@@ -158,9 +159,12 @@ def create_app(config_class=Config) -> Flask:
     def inject_globals():
         from flask_login import current_user
         unread = 0
+        unread_dm = 0
         if current_user.is_authenticated:
             from services.notification_service import NotificationService
+            from services.chat_service import ChatService
             unread = NotificationService.get_unread_count(current_user)
+            unread_dm = ChatService.unread_dm_total(current_user)
         return {
             "now": datetime.utcnow(),
             # Prefiks widziany przez PRZEGLĄDARKĘ (do budowania linków w JS,
@@ -170,6 +174,7 @@ def create_app(config_class=Config) -> Flask:
             "prefix": app.config.get("PREFIX", "/koloseum"),
             "filevault_url": app.config.get("FILEVAULT_BASE_URL", "/filevault"),
             "unread_notifications": unread,
+            "unread_dm": unread_dm,
         }
 
     # Error handlers

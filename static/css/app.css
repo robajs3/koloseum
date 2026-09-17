@@ -1257,3 +1257,100 @@ tr:hover td { background: var(--primary-light); }
 @media (max-width: 768px) {
   .fv-drawer { width: 100%; max-width: 100%; }
 }
+
+/* ===== PANEL "CZAT" — dymki i formularz w widoku rozmowy ===== */
+.chat-dm-tab-badge {
+  background: var(--danger);
+  color: #fff;
+  min-width: 16px;
+  padding: 1px 5px;
+  font-size: .62rem;
+}
+
+.chat-conv {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.chat-conv-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.chat-conv-title { font-weight: 700; font-size: .92rem; color: var(--text); }
+.chat-conv-subtitle { font-size: .72rem; color: var(--text-muted); margin-top: 1px; }
+
+.chat-conv-messages {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chat-bubble-row { display: flex; }
+.chat-bubble-row.mine { justify-content: flex-end; }
+
+.chat-bubble {
+  max-width: 78%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px 14px 14px 4px;
+  padding: 7px 11px;
+}
+.chat-bubble-row.mine .chat-bubble {
+  background: var(--primary);
+  border-color: var(--primary);
+  border-radius: 14px 14px 4px 14px;
+}
+.chat-bubble-row.mine .chat-bubble .chat-bubble-text,
+.chat-bubble-row.mine .chat-bubble .chat-bubble-time { color: #fff; }
+
+.chat-bubble-author {
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 2px;
+}
+.chat-bubble-text {
+  font-size: .85rem;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
+}
+.chat-bubble-time {
+  font-size: .62rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+  text-align: right;
+}
+
+.chat-conv-input {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.chat-conv-input input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 8px 14px;
+  font-size: .85rem;
+  background: var(--bg-card);
+  color: var(--text);
+}
+.chat-conv-input input:focus { outline: none; border-color: var(--primary); }
+.chat-conv-input button {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}

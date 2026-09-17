@@ -54,6 +54,10 @@
       </a>
 
       <span class="nav-section">Narzędzia</span>
+      <a class="nav-item" href="javascript:void(0)" onclick="openChatPanel()">
+        <i class="fas fa-comments nav-icon"></i> Czat
+        <span class="badge chat-unread-count" id="chat-nav-badge" {% if unread_dm <= 0 %}style="display:none"{% endif %}>{{ unread_dm }}</span>
+      </a>
       <a class="nav-item" href="javascript:void(0)" onclick="openFilevaultPanel()">
         <i class="fas fa-hdd nav-icon"></i> Dysk
       </a>
@@ -106,6 +110,11 @@
         <!-- Theme toggle -->
         <button class="icon-btn" onclick="ThemeManager.toggle()" title="Zmień motyw">
           <i class="fas fa-moon" id="theme-icon"></i>
+        </button>
+        <!-- Chat -->
+        <button class="icon-btn" onclick="openChatPanel()" title="Czat">
+          <i class="fas fa-comments"></i>
+          <span class="notif-badge chat-unread-count" id="chat-topbar-badge" {% if unread_dm <= 0 %}style="display:none"{% endif %}>{{ unread_dm }}</span>
         </button>
         <!-- Notifications -->
         <a class="icon-btn" href="{{ url_for('notifications.list_notifications') }}" title="Powiadomienia">
@@ -225,6 +234,38 @@
   <div id="fv-toast" class="fv-toast"></div>
 </aside>
 
+<!-- ===== PANEL "CZAT" — wysuwany z lewej, dostępny z każdej strony ===== -->
+<div id="chat-backdrop" class="fv-backdrop" onclick="closeChatPanel()"></div>
+<aside id="chat-drawer" class="fv-drawer">
+  <div class="fv-drawer-header">
+    <div class="fv-drawer-title">
+      <i class="fas fa-comments"></i> Czat
+    </div>
+    <div style="display:flex;align-items:center;gap:4px">
+      <button type="button" class="fv-icon-btn" id="chat-back-btn" style="display:none" onclick="chatShowList()" title="Wróć do listy">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <button type="button" class="fv-icon-btn" onclick="closeChatPanel()" title="Zamknij">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  </div>
+
+  <div class="fv-drawer-tabs" id="chat-drawer-tabs">
+    <button type="button" class="fv-tab-btn active" id="chat-tab-rooms" onclick="switchChatTab('rooms')">
+      <i class="fas fa-door-open"></i> Pokoje
+    </button>
+    <button type="button" class="fv-tab-btn" id="chat-tab-dm" onclick="switchChatTab('dm')">
+      <i class="fas fa-user"></i> Wiadomości
+      <span class="badge chat-dm-tab-badge" id="chat-dm-tab-badge" style="display:none"></span>
+    </button>
+  </div>
+
+  <div class="fv-drawer-body" id="chat-drawer-body">
+    <div class="fv-loading"><i class="fas fa-spinner fa-spin"></i> Ładowanie…</div>
+  </div>
+</aside>
+
 <!-- ===== Modal podglądu pliku z panelu "Dysk" (globalny, dostępny z każdej strony) ===== -->
 <div id="fv-preview-modal" style="display:none;position:fixed;inset:0;z-index:1100;
      background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:20px">
@@ -248,6 +289,13 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+const CHAT_PANEL_DATA_URL = "{{ url_for('chat.panel_data') }}";
+const CHAT_SUBJECT_MESSAGES_URL_TPL = "{{ url_for('chat.subject_messages', subject_id=0) }}";
+const CHAT_DM_MESSAGES_URL_TPL = "{{ url_for('chat.dm_messages', user_id=0) }}";
+const CHAT_CURRENT_USER_ID = {{ current_user.id if current_user.is_authenticated else 'null' }};
+</script>
+<script src="{{ url_for('static', filename='js/chat_widget.js') }}"></script>
 <script>
   // Hamburger visible on mobile
 if (window.innerWidth <= 768) {
