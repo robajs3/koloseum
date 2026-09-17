@@ -891,6 +891,17 @@ window.FvDnD = {
   attach(el, handlers, opts) {
     if (!el) return;
     this._current = { handlers, label: (opts && opts.label) || 'Upuść tutaj, aby dodać do materiałów' };
+
+    // Drag & drop z HTML5 ma sens tylko z myszką (przeciąganie z panelu
+    // "Dysk"). Na dotyku long-press na obrazku/linku sam odpala natywny
+    // drag przeglądarki (iOS Safari / Chrome Android), co dociera jako
+    // dragenter/dragover do "el" i podświetla CAŁY element (patrz
+    // .fv-dropzone-active) — na zakładce "Materiały" to cała, potencjalnie
+    // długa lista, więc wygląda jak ogromny, zepsuty box. Panel "Dysk" i tak
+    // nie jest realnym źródłem drag na dotyku, więc po prostu nie
+    // podpinamy nasłuchu na urządzeniach dotykowych.
+    if (window.matchMedia('(pointer: coarse)').matches) return;
+
     // Nasłuch na oryginalnym elemencie zostaje jako dodatkowa, "prawdziwa"
     // strefa upuszczania (np. gdyby kiedyś panel "Dysk" przestał zasłaniać
     // stronę pełnym backdropem) — w praktyce, dopóki panel jest wysuwany z

@@ -1255,6 +1255,14 @@ tr:hover td { background: var(--primary-light); }
   border-radius: var(--radius);
 }
 
+/* Siatka bezpieczeństwa: na wąskich/dotykowych ekranach nie podpinamy już
+   nasłuchu drag&drop (patrz window.FvDnD.attach w base.html), ale na
+   wszelki wypadek (np. hybrydowe urządzenia z myszką i dotykiem) nie
+   pozwalamy tej klasie wizualnie "rozjechać" całej zakładki materiałów. */
+@media (max-width: 768px) {
+  .fv-dropzone-active { outline: none; background: none; }
+}
+
 @media (max-width: 768px) {
   .fv-drawer { width: 100%; max-width: 100%; }
 }
