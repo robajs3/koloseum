@@ -321,8 +321,9 @@
         </div>
         <div class="form-group">
           <label class="form-label">Lub link FileVault</label>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
             <input type="text" name="filevault_link" id="material-filevault-link" class="form-control"
+                   style="flex:1 1 180px;min-width:0"
                    placeholder="https://…/filevault/share/…">
             <button type="button" class="btn btn-ghost btn-sm" style="flex-shrink:0"
                     onclick="openFilevaultPanel('material')">
@@ -486,8 +487,9 @@
     <div class="card-header"><h4><i class="fas fa-hdd" style="color:var(--secondary);margin-right:6px"></i>Folder FileVault</h4></div>
     <div class="card-body">
       <form method="POST" id="set-folder-form" action="{{ url_for('subjects.set_filevault_folder', subject_id=subject.id) }}">
-        <div class="form-group" style="display:flex;gap:8px">
+        <div class="form-group" style="display:flex;gap:8px;flex-wrap:wrap">
           <input type="text" name="filevault_folder_url" id="folder-filevault-link" class="form-control"
+                 style="flex:1 1 180px;min-width:0"
                  value="{{ subject.filevault_folder_url or '' }}"
                  placeholder="https://…/filevault/shared-folder/…">
           <button type="button" class="btn btn-ghost btn-sm" style="flex-shrink:0"
