@@ -60,9 +60,13 @@ function chatLoadPanelData() {
     .then(data => {
       chatPanelData = data;
       chatUpdateBadges(data.unread_total, data.open_tickets_admin);
+      // Rozmowa mogła zostać otwarta zanim dane dojechały (np. z wyszukiwarki
+      // w topbarze) — wtedy NIE nadpisujemy jej widoku listą.
+      if (chatConversation) return;
       chatRenderList();
     })
     .catch(() => {
+      if (chatConversation) return;
       body.innerHTML = '<div class="fv-empty fv-empty-danger">Nie udało się wczytać czatu.</div>';
     });
 }

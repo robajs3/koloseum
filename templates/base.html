@@ -106,7 +106,28 @@
         <i class="fas fa-bars"></i>
       </button>
       <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+
+      <!-- Wyszukiwarka globalna (static/js/search.js). Bez JS działa jako
+           zwykły formularz GET do /search. Skróty: "/" lub Ctrl/Cmd+K. -->
+      <form class="gsearch" id="gsearch" role="search" action="{{ url_for('search.page') }}" method="get" autocomplete="off">
+        <i class="fas fa-search gsearch-icon" aria-hidden="true"></i>
+        <input type="text" name="q" id="gsearch-input" class="gsearch-input"
+               placeholder="Szukaj pokoi, plików, użytkowników…" maxlength="80"
+               spellcheck="false" autocomplete="off" role="combobox"
+               aria-label="Szukaj w Koloseum" aria-controls="gsearch-panel"
+               aria-expanded="false" aria-autocomplete="list">
+        <kbd class="gsearch-kbd" id="gsearch-kbd" aria-hidden="true">/</kbd>
+        <button type="button" class="gsearch-close" id="gsearch-close" aria-label="Zamknij wyszukiwanie">
+          <i class="fas fa-times"></i>
+        </button>
+        <div class="gsearch-panel" id="gsearch-panel" role="listbox" hidden></div>
+      </form>
+
       <div class="topbar-actions">
+        <!-- Search (mobile) -->
+        <button type="button" class="icon-btn gsearch-toggle" id="gsearch-toggle" title="Szukaj" aria-label="Szukaj">
+          <i class="fas fa-search"></i>
+        </button>
         <!-- Theme toggle -->
         <button class="icon-btn" onclick="ThemeManager.toggle()" title="Zmień motyw">
           <i class="fas fa-moon" id="theme-icon"></i>
@@ -336,8 +357,14 @@ const CHAT_TICKET_REPLIES_URL_TPL = "{{ url_for('chat.add_ticket_reply', ticket_
 const CHAT_TICKET_STATUS_URL_TPL = "{{ url_for('chat.set_ticket_status', ticket_id=0) }}";
 const CHAT_CURRENT_USER_IS_ADMIN = {{ 'true' if current_user.is_authenticated and current_user.is_global_admin else 'false' }};
 const CHAT_CURRENT_USER_ID = {{ current_user.id if current_user.is_authenticated else 'null' }};
+window.KOLOSEUM_SEARCH = {
+  api: "{{ url_for('search.api') }}",
+  fvApi: "{{ url_for('search.api_filevault') }}",
+  page: "{{ url_for('search.page') }}"
+};
 </script>
 <script src="{{ url_for('static', filename='js/chat_widget.js') }}"></script>
+<script src="{{ url_for('static', filename='js/search.js') }}"></script>
 <script>
   // Hamburger visible on mobile
 if (window.innerWidth <= 768) {

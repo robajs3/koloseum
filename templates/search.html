@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{% if q %}Szukaj: {{ q }} — {% endif %}Koloseum{% endblock %}
+{% block page_title %}Wyszukiwanie{% endblock %}
+
+{% block content %}
+<div id="search-page" style="max-width:820px;margin:0 auto">
+
+  <form method="get" action="{{ url_for('search.page') }}" class="card mb-4" style="padding:14px 16px;display:flex;gap:10px;align-items:center">
+    <i class="fas fa-search" style="color:var(--text-muted)"></i>
+    <input type="text" name="q" value="{{ q }}" maxlength="80" class="form-control"
+           placeholder="Szukaj pokoi, przedmiotów, plików, użytkowników…" style="flex:1" autofocus>
+    <button type="submit" class="btn btn-primary btn-sm">Szukaj</button>
+  </form>
+
+  {% if too_short %}
+    <div class="empty-state"><p>Wpisz co najmniej 2 znaki.</p></div>
+  {% elif not q %}
+    <div class="empty-state">
+      <div class="empty-icon"><i class="fas fa-magnifying-glass"></i></div>
+      <p>Wyszukaj pokoje, przedmioty, terminy, materiały, załączniki, wiadomości, użytkowników i pliki z FileVault.</p>
+    </div>
+  {% else %}
+
+    {% for cat, items in results.items() %}
+    <div class="card mb-4 gsearch-page-section">
+      <div class="gsearch-section-title" style="padding:12px 16px 4px">{{ labels[cat] }}</div>
+      <div style="padding:0 6px 8px">
+        {% for it in items %}
+        <a class="gsearch-item" {% if it.action == 'dm' %}href="#" data-dm-user="{{ it.user_id }}" data-dm-name="{{ it.title }}"{% else %}href="{{ it.url }}"{% endif %}>
+          <span class="gsearch-item-icon"><i class="fas fa-{{ it.icon }}"{% if it.color %} style="color:{{ it.color }}"{% endif %}></i></span>
+          <span class="gsearch-item-text">
+            <span class="gsearch-item-title">{{ it.title }}</span>
+            {% if it.subtitle %}<span class="gsearch-item-sub">{{ it.subtitle }}</span>{% endif %}
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    {# FileVault dociągany przez JS (zdalne API) — patrz static/js/search.js #}
+    <div id="search-page-fv" data-q="{{ q }}" class="gsearch-page-fv"></div>
+
+    <div id="search-page-empty" class="empty-state" data-local-empty="{{ '1' if not results else '0' }}" {% if results %}hidden{% endif %}>
+      <div class="empty-icon"><i class="fas fa-magnifying-glass"></i></div>
+      <p>Brak wyników dla „{{ q }}”.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

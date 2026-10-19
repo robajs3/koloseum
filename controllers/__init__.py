@@ -8,6 +8,7 @@ from controllers.admin_controller import admin_bp
 from controllers.export_api_controller import export_api_bp
 from controllers.filevault_panel_controller import filevault_panel_bp
 from controllers.chat_controller import chat_bp
+from controllers.search_controller import search_bp
 
 __all__ = [
     "auth_bp",
@@ -20,4 +21,5 @@ __all__ = [
     "export_api_bp",
     "filevault_panel_bp",
     "chat_bp",
+    "search_bp",
 ]
