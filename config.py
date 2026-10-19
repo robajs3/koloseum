@@ -41,11 +41,15 @@ class Config:
     # "X dni przed".
     REMINDER_CHECK_INTERVAL = int(os.getenv("REMINDER_CHECK_INTERVAL", "300"))
 
-    # --- Podsumowania AI materiałów PDF (services/ai_service.py) ---
-    # Bez klucza funkcja jest po prostu wyłączona (przyciski się nie pokazują).
-    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-    AI_SUMMARY_MODEL = os.getenv("AI_SUMMARY_MODEL", "claude-haiku-5-5")
-    # Powyżej tego rozmiaru PDF nie jest wysyłany natywnie, tylko jako wyciągnięty tekst.
-    AI_SUMMARY_MAX_PDF_MB = int(os.getenv("AI_SUMMARY_MAX_PDF_MB", "20"))
-    # Ile podsumowań na usera na 24h (ochrona rachunku za API).
+    # --- Podsumowania AI materiałów PDF (services/ai_service.py) — lokalna Ollama ---
+    AI_SUMMARY_ENABLED = os.getenv("AI_SUMMARY_ENABLED", "true").lower() == "true"
+    OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
+    AI_SUMMARY_MODEL = os.getenv("AI_SUMMARY_MODEL", "qwen2.5:7b")
+    # Ile znaków tekstu z PDF trafia do modelu (reszta jest ucinana).
+    AI_SUMMARY_MAX_CHARS = int(os.getenv("AI_SUMMARY_MAX_CHARS", "20000"))
+    # Okno kontekstu modelu w tokenach — musi pomieścić tekst + odpowiedź.
+    AI_SUMMARY_NUM_CTX = int(os.getenv("AI_SUMMARY_NUM_CTX", "8192"))
+    # Timeout (s) na odpowiedź; na CPU generowanie potrafi trwać kilka minut.
+    AI_SUMMARY_TIMEOUT = int(os.getenv("AI_SUMMARY_TIMEOUT", "900"))
+    # Ile podsumowań na usera na 24h (ochrona CPU serwera).
     AI_SUMMARY_DAILY_LIMIT = int(os.getenv("AI_SUMMARY_DAILY_LIMIT", "30"))

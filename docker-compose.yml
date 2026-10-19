@@ -42,9 +42,13 @@ services:
       # w .env LoginHub. hub-web to nazwa kontenera LoginHub w sso_net.
       SSO_SECRET: ${SSO_SECRET:-}
       HUB_INTERNAL_URL: ${HUB_INTERNAL_URL:-http://hub-web:8000}
-      # Podsumowania AI materiałów PDF (puste = funkcja wyłączona)
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      AI_SUMMARY_MODEL: ${AI_SUMMARY_MODEL:-claude-haiku-5-5}
+      # Podsumowania AI materiałów PDF — lokalna Ollama (kontener "ollama" niżej)
+      AI_SUMMARY_ENABLED: ${AI_SUMMARY_ENABLED:-true}
+      OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
+      AI_SUMMARY_MODEL: ${AI_SUMMARY_MODEL:-qwen2.5:7b}
+      AI_SUMMARY_MAX_CHARS: ${AI_SUMMARY_MAX_CHARS:-20000}
+      AI_SUMMARY_NUM_CTX: ${AI_SUMMARY_NUM_CTX:-8192}
+      AI_SUMMARY_TIMEOUT: ${AI_SUMMARY_TIMEOUT:-900}
       AI_SUMMARY_DAILY_LIMIT: ${AI_SUMMARY_DAILY_LIMIT:-30}
     ports:
       # Zmapowane na localhost — Tailscale Serve wskazuje na ten port,
@@ -58,8 +62,34 @@ services:
       - default
       - sso_net
 
+  # Lokalny serwer LLM do podsumowań PDF. Nie wystawiamy portu na hosta —
+  # dostępny tylko dla kontenera "app" w sieci compose.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: koloseum-ollama
+    restart: unless-stopped
+    volumes:
+      - koloseum_ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Jednorazowo pobiera model (zapisuje się w wolumenie, kolejne starty są szybkie).
+  ollama-pull:
+    image: ollama/ollama:latest
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: ollama:11434
+    entrypoint: ["/bin/sh", "-c", "ollama pull ${AI_SUMMARY_MODEL:-qwen2.5:7b}"]
+
 volumes:
   koloseum_pgdata:
+  koloseum_ollama:
   koloseum_uploads:
 
 networks:

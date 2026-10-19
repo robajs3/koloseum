@@ -11,5 +11,4 @@ python-dotenv>=1.0.0
 pywebpush>=2.0.0
 requests>=2.31.0
 SQLAlchemy>=2.0,<2.1
-anthropic>=0.40.0
 pypdf>=4.0.0

@@ -19,8 +19,12 @@ from services.file_service import FileService
 
 logger = logging.getLogger(__name__)
 
+# Lokalny model na CPU jest wolny — w obrębie jednego workera generujemy po jednym
+# podsumowaniu naraz, reszta czeka w kolejce (Ollama kolejkuje też między workerami).
+_gen_lock = threading.Semaphore(1)
+
 # "pending" starsze niż to uznajemy za zawieszone (np. restart workera w trakcie)
-STALE_AFTER = timedelta(minutes=10)
+STALE_AFTER = timedelta(minutes=20)
 
 
 def is_summarizable(material: StudyMaterial) -> bool:
@@ -93,7 +97,8 @@ class SummaryService:
                 path = FileService.get_material_path(material)
                 if not path or not os.path.exists(path):
                     raise ai_service.AIError("Nie znaleziono pliku.")
-                text, model = ai_service.summarize_pdf(path, material.title)
+                with _gen_lock:
+                    text, model = ai_service.summarize_pdf(path, material.title)
                 row.summary, row.model = text, model
                 row.status = MaterialSummary.STATUS_DONE
                 row.error = None
