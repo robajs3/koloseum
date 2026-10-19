@@ -3,7 +3,7 @@ from models import db
 
 
 class MaterialSummary(db.Model):
-    """Podsumowanie AI dla materiału (PDF). Osobna tabela, dzięki czemu
+    """Podsumowanie AI dla materiału (PDF, Word, plik z FileVault itd.). Osobna tabela, dzięki czemu
     db.create_all() utworzy ją sam — bez ręcznych migracji istniejącej bazy."""
     __tablename__ = "material_summaries"
 

@@ -6,6 +6,7 @@ from models.user_model import User
 from models.room_model import Room, RoomMember, Subject
 from models.exam_model import Exam, ChatMessage, ChatAttachment, StudyMaterial, Notification, ExamReminderLog
 from models.material_summary_model import MaterialSummary
+from models.folder_summary_model import FolderSummary
 from models.announcement_model import Announcement
 from models.message_model import DirectMessage
 from models.ticket_model import Ticket, TicketReply
@@ -21,6 +22,7 @@ __all__ = [
     "ChatAttachment",
     "StudyMaterial",
     "MaterialSummary",
+    "FolderSummary",
     "Notification",
     "ExamReminderLog",
     "Announcement",

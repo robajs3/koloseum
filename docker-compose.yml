@@ -42,7 +42,7 @@ services:
       # w .env LoginHub. hub-web to nazwa kontenera LoginHub w sso_net.
       SSO_SECRET: ${SSO_SECRET:-}
       HUB_INTERNAL_URL: ${HUB_INTERNAL_URL:-http://hub-web:8000}
-      # Podsumowania AI materiałów PDF — lokalna Ollama (kontener "ollama" niżej)
+      # Podsumowania AI materiałów (PDF, Word, FileVault…) — lokalna Ollama (kontener "ollama" niżej)
       AI_SUMMARY_ENABLED: ${AI_SUMMARY_ENABLED:-true}
       OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
       AI_SUMMARY_MODEL: ${AI_SUMMARY_MODEL:-gemma3:4b}
@@ -53,6 +53,10 @@ services:
       AI_SUMMARY_NUM_THREADS: ${AI_SUMMARY_NUM_THREADS:-0}
       AI_SUMMARY_TIMEOUT: ${AI_SUMMARY_TIMEOUT:-900}
       AI_SUMMARY_DAILY_LIMIT: ${AI_SUMMARY_DAILY_LIMIT:-30}
+      AI_FETCH_MAX_MB: ${AI_FETCH_MAX_MB:-25}
+      AI_FETCH_TIMEOUT: ${AI_FETCH_TIMEOUT:-60}
+      AI_FOLDER_MAX_FILES: ${AI_FOLDER_MAX_FILES:-8}
+      AI_FOLDER_FILE_CHARS: ${AI_FOLDER_FILE_CHARS:-6000}
     ports:
       # Zmapowane na localhost — Tailscale Serve wskazuje na ten port,
       # tak jak wcześniej wskazywał na usługę systemd na 5001.

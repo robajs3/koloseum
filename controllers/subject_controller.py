@@ -4,12 +4,21 @@ from models import Subject, Exam, ChatMessage, ChatAttachment, StudyMaterial, Ro
 from services.room_service import RoomService
 from services.exam_service import ExamService
 from services.file_service import FileService
-from services.summary_service import SummaryService, is_summarizable
+from services.summary_service import SummaryService, is_summarizable, source_kind
+from services import filevault_fetch
 from utils.timezone import to_utc, utc_now
 from datetime import datetime
 import os
 
 subject_bp = Blueprint("subjects", __name__)
+
+SSO_COOKIE_NAME = os.environ.get("SSO_COOKIE_NAME", "sso_session")
+
+
+def _sso_cookie() -> str | None:
+    """Ciasteczko SSO usera — przekazywane (tylko do wewnętrznego FileVault) przy
+    podsumowaniach linków, które mogą wymagać zalogowania."""
+    return request.cookies.get(SSO_COOKIE_NAME)
 
 
 def get_subject_or_404(subject_id: int) -> Subject:
@@ -21,6 +30,11 @@ def require_subject_access(subject: Subject):
     if not member and not current_user.is_global_admin:
         abort(403)
     return member
+
+
+def _folder_summary_pending(subject: Subject) -> bool:
+    fs = subject.folder_summary
+    return bool(fs and fs.status == "pending" and fs.source_url == subject.filevault_folder_url)
 
 
 def is_room_admin(subject: Subject) -> bool:
@@ -106,6 +120,10 @@ def subject_detail(subject_id: int):
         now=now,
         previewable_extensions=set(PREVIEWABLE_MIMETYPES.keys()),
         ai_enabled=SummaryService.enabled(),
+        # id materiału → 'local' | 'file' | 'folder' (tylko te, które da się podsumować)
+        summarizable={m.id: k for m in materials if (k := source_kind(m))},
+        ai_folder=bool(filevault_fetch.link_kind(subject.filevault_folder_url)),
+        folder_summary_pending=_folder_summary_pending(subject),
     )
 
 
@@ -186,10 +204,11 @@ def add_material(subject_id: int):
         flash(err, "danger")
     else:
         flash("Materiał dodany!", "success")
-        # PDF → od razu zlecamy podsumowanie AI (w tle; nie blokuje odpowiedzi)
-        if (material and is_summarizable(material) and SummaryService.enabled()
+        # Plik (PDF, Word, … albo link do pliku z FileVault) → od razu zlecamy podsumowanie AI
+        # w tle; nie blokuje odpowiedzi. Foldery tylko na żądanie — to wiele zapytań do modelu.
+        if (material and source_kind(material) in ("local", "file") and SummaryService.enabled()
                 and not SummaryService.user_over_limit(current_user.id)):
-            SummaryService.start(material, current_user.id)
+            SummaryService.start(material, current_user.id, sso_cookie=_sso_cookie())
     return redirect(url_for("subjects.subject_detail", subject_id=subject_id) + "#materials")
 
 
@@ -310,7 +329,9 @@ def generate_material_summary(subject_id: int, material_id: int):
     if not SummaryService.enabled():
         return jsonify({"status": "error", "error": "Podsumowania AI są wyłączone."}), 503
     if not is_summarizable(material):
-        return jsonify({"status": "error", "error": "Podsumowanie działa tylko dla plików PDF."}), 400
+        return jsonify({"status": "error",
+                        "error": "Podsumowanie działa dla plików PDF, Word, PowerPoint, Excel, "
+                                 "OpenDocument, tekstowych oraz linków FileVault."}), 400
 
     # Nadpisać gotowe podsumowanie może tylko autor materiału lub admin pokoju;
     # pozostali mogą wygenerować brakujące albo ponowić nieudane.
@@ -322,5 +343,43 @@ def generate_material_summary(subject_id: int, material_id: int):
         return jsonify({"status": "error",
                         "error": "Dzienny limit podsumowań AI został wykorzystany."}), 429
 
-    row = SummaryService.start(material, current_user.id, force=force)
+    row = SummaryService.start(material, current_user.id, force=force, sso_cookie=_sso_cookie())
+    return jsonify(SummaryService.to_dict(row))
+
+
+@subject_bp.route("/subjects/<int:subject_id>/folder-summary")
+@login_required
+def folder_summary(subject_id: int):
+    """Status + treść przeglądu AI folderu FileVault przypiętego do przedmiotu."""
+    subject = get_subject_or_404(subject_id)
+    require_subject_access(subject)
+    return jsonify(SummaryService.folder_to_dict(subject))
+
+
+@subject_bp.route("/subjects/<int:subject_id>/folder-summary", methods=["POST"])
+@login_required
+def generate_folder_summary(subject_id: int):
+    """Ręczne wygenerowanie / ponowienie przeglądu folderu."""
+    subject = get_subject_or_404(subject_id)
+    require_subject_access(subject)
+
+    if not SummaryService.enabled():
+        return jsonify({"status": "error", "error": "Podsumowania AI są wyłączone."}), 503
+    if not filevault_fetch.link_kind(subject.filevault_folder_url):
+        return jsonify({"status": "error",
+                        "error": "Ten przedmiot nie ma folderu FileVault z rozpoznawanym linkiem."}), 400
+
+    # Folder zmienia się w czasie, więc odświeżyć gotowy przegląd może admin pokoju;
+    # pozostali mogą wygenerować brakujący albo ponowić nieudany.
+    existing = subject.folder_summary
+    force = bool(existing and existing.status == "done"
+                 and existing.source_url == subject.filevault_folder_url
+                 and is_room_admin(subject))
+
+    if SummaryService.user_over_limit(current_user.id):
+        return jsonify({"status": "error",
+                        "error": "Dzienny limit podsumowań AI został wykorzystany."}), 429
+
+    row = SummaryService.start_folder(subject, current_user.id, force=force,
+                                      sso_cookie=_sso_cookie())
     return jsonify(SummaryService.to_dict(row))

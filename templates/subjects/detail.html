@@ -21,9 +21,33 @@
     <button type="button" class="btn btn-ghost" onclick="toggleFolderPreview()">
       <i class="fas fa-eye"></i> Podgląd folderu
     </button>
+    {% if ai_enabled and ai_folder %}
+    <button type="button" class="btn btn-ghost" id="sum-btn-folder" onclick="toggleSummary('folder')"
+            title="Przegląd zawartości folderu wygenerowany przez AI">
+      <i class="fas fa-wand-magic-sparkles"></i> Przegląd AI
+    </button>
+    {% endif %}
   </div>
   {% endif %}
 </div>
+
+{% if ai_enabled and ai_folder %}
+<div id="sum-panel-folder" class="ai-summary" style="display:none;margin-bottom:20px;padding:12px 16px;
+     background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm)"
+     data-url="{{ url_for('subjects.folder_summary', subject_id=subject.id) }}"
+     data-can-regen="{{ '1' if admin else '0' }}"
+     data-auto="{{ '1' if folder_summary_pending else '0' }}">
+  <div style="font-size:.72rem;font-weight:600;color:var(--primary);margin-bottom:6px">
+    <i class="fas fa-wand-magic-sparkles"></i> Przegląd folderu (AI)
+  </div>
+  <div class="ai-summary-body" style="font-size:.84rem;line-height:1.55"></div>
+  <div class="ai-summary-actions" style="margin-top:8px"></div>
+  <div style="font-size:.68rem;color:var(--text-light);margin-top:6px">
+    Wygenerowane lokalnym modelem AI na podstawie pierwszych plików w folderze — może zawierać błędy.
+    Zawartość folderu mogła się zmienić od czasu wygenerowania.
+  </div>
+</div>
+{% endif %}
 
 {% if subject.filevault_folder_url %}
 <div id="folder-preview-box" style="display:none;margin-bottom:20px">
@@ -454,9 +478,10 @@
           </span>
           {% endif %}
 
-          {% if ai_enabled and is_pdf and not mat.is_filevault_link %}
+          {% if ai_enabled and mat.id in summarizable %}
           <button type="button" class="btn btn-ghost btn-sm" id="sum-btn-{{ mat.id }}"
-                  onclick="toggleSummary({{ mat.id }})" title="Podsumowanie AI"
+                  onclick="toggleSummary({{ mat.id }})"
+                  title="{{ 'Przegląd folderu (AI)' if summarizable[mat.id] == 'folder' else 'Podsumowanie AI' }}"
                   style="{% if mat.summary and mat.summary.status == 'done' %}color:var(--primary){% endif %}">
             <i class="fas fa-wand-magic-sparkles"></i>
           </button>
@@ -483,14 +508,15 @@
           {% endif %}
         </div>
       </div>
-      {% if ai_enabled and is_pdf and not mat.is_filevault_link %}
+      {% if ai_enabled and mat.id in summarizable %}
       <div id="sum-panel-{{ mat.id }}" class="ai-summary" style="display:none;padding:12px 16px;
            background:var(--bg);border-bottom:1px solid var(--border)"
            data-url="{{ url_for('subjects.material_summary', subject_id=subject.id, material_id=mat.id) }}"
            data-can-regen="{{ '1' if (mat.uploaded_by == current_user.id or admin) else '0' }}"
            data-auto="{{ '1' if (mat.summary and mat.summary.status == 'pending') else '0' }}">
         <div style="font-size:.72rem;font-weight:600;color:var(--primary);margin-bottom:6px">
-          <i class="fas fa-wand-magic-sparkles"></i> Podsumowanie AI
+          <i class="fas fa-wand-magic-sparkles"></i>
+          {{ 'Przegląd folderu (AI)' if summarizable[mat.id] == 'folder' else 'Podsumowanie AI' }}
         </div>
         <div class="ai-summary-body" style="font-size:.84rem;line-height:1.55"></div>
         <div class="ai-summary-actions" style="margin-top:8px"></div>
@@ -634,7 +660,7 @@ function paintSummary(id, data) {
   };
 
   if (data.status === 'pending') {
-    body.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;margin-right:6px"></span> Generuję podsumowanie… (długie pliki mogą potrwać kilka–kilkanaście minut)';
+    body.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;margin-right:6px"></span> Generuję podsumowanie… (długie pliki i foldery mogą potrwać kilka–kilkanaście minut)';
     summaryTimers[id] = setTimeout(() => pollSummary(id), 3000);
   } else if (data.status === 'done') {
     body.innerHTML = renderSummary(data.summary || '');
@@ -683,7 +709,7 @@ function toggleSummary(id) {
 
 // Jeśli podsumowanie właśnie się generuje (np. po uploadzie) — otwórz panel i pokaż postęp.
 document.querySelectorAll('.ai-summary[data-auto="1"]').forEach(p => {
-  toggleSummary(parseInt(p.id.replace('sum-panel-', ''), 10));
+  toggleSummary(p.id.replace('sum-panel-', ''));  // id liczbowe (materiał) albo 'folder'
 });
 
 /* ===== PODGLĄD FOLDERU FILEVAULT (iframe inline) ===== */

@@ -41,7 +41,9 @@ class Config:
     # "X dni przed".
     REMINDER_CHECK_INTERVAL = int(os.getenv("REMINDER_CHECK_INTERVAL", "300"))
 
-    # --- Podsumowania AI materiałów PDF (services/ai_service.py) — lokalna Ollama, tylko CPU/RAM ---
+    # --- Podsumowania AI materiałów (services/ai_service.py) — lokalna Ollama, tylko CPU/RAM ---
+    # Obsługiwane: PDF, Word (docx), PowerPoint (pptx), Excel (xlsx), OpenDocument, pliki tekstowe,
+    # a także pliki i foldery udostępnione przez FileVault.
     AI_SUMMARY_ENABLED = os.getenv("AI_SUMMARY_ENABLED", "true").lower() == "true"
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
     AI_SUMMARY_MODEL = os.getenv("AI_SUMMARY_MODEL", "gemma3:4b")
@@ -63,3 +65,13 @@ class Config:
     AI_SUMMARY_TIMEOUT = int(os.getenv("AI_SUMMARY_TIMEOUT", "900"))
     # Ile podsumowań na usera na 24h (ochrona CPU serwera).
     AI_SUMMARY_DAILY_LIMIT = int(os.getenv("AI_SUMMARY_DAILY_LIMIT", "30"))
+
+    # --- Pliki i foldery z FileVault w podsumowaniach AI (services/filevault_fetch.py) ---
+    # Maks. rozmiar pliku pobieranego z FileVault na potrzeby podsumowania (MB).
+    AI_FETCH_MAX_MB = int(os.getenv("AI_FETCH_MAX_MB", "25"))
+    # Timeout odczytu (s) przy pobieraniu z FileVault.
+    AI_FETCH_TIMEOUT = int(os.getenv("AI_FETCH_TIMEOUT", "60"))
+    # Przegląd folderu: ile plików maksymalnie analizujemy (każdy = osobne zapytanie do modelu)...
+    AI_FOLDER_MAX_FILES = int(os.getenv("AI_FOLDER_MAX_FILES", "8"))
+    # ...i ile znaków każdego z nich czytamy (jeden fragment, żeby było szybko na CPU).
+    AI_FOLDER_FILE_CHARS = int(os.getenv("AI_FOLDER_FILE_CHARS", "6000"))
