@@ -1,4 +1,4 @@
-from models import db, Exam, Subject, RoomMember, User, Notification
+from models import db, EXAM_TYPES, Exam, Subject, RoomMember, User, Notification
 from datetime import datetime, timedelta
 from services.notification_service import NotificationService
 from utils.timezone import to_local, to_utc, utc_now
@@ -72,6 +72,20 @@ class ExamService:
         )
 
     @staticmethod
+    def get_creatable_subjects(user: User) -> list[Subject]:
+        """Przedmioty, do których user może dodawać terminy (admin pokoju;
+        globalny admin — wszystkie z jego pokojów). Spójne z is_room_admin
+        w subject_controller i z widocznością formularza w subjects/detail."""
+        memberships = RoomMember.query.filter_by(user_id=user.id).all()
+        if user.is_global_admin:
+            room_ids = [m.room_id for m in memberships]
+        else:
+            room_ids = [m.room_id for m in memberships if m.role == "admin"]
+        if not room_ids:
+            return []
+        return Subject.query.filter(Subject.room_id.in_(room_ids)).order_by(Subject.name).all()
+
+    @staticmethod
     def get_calendar_events(user: User, year: int, month: int) -> list[dict]:
         memberships = RoomMember.query.filter_by(user_id=user.id).all()
         room_ids = [m.room_id for m in memberships]
@@ -92,6 +106,7 @@ class ExamService:
             .filter(Exam.exam_date <= end)
             .all()
         )
+        type_labels = {v: label for v, label, _ in EXAM_TYPES}
         events = []
         for e in exams:
             local_date = to_local(e.exam_date)
@@ -101,6 +116,7 @@ class ExamService:
                 "date": local_date.strftime("%Y-%m-%d"),
                 "time": local_date.strftime("%H:%M"),
                 "type": e.exam_type,
+                "type_label": type_labels.get(e.exam_type, e.exam_type),
                 "subject": e.subject.name,
                 "subject_id": e.subject.id,      # <-- dodane
                 "subject_color": e.subject.color,

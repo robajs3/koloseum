@@ -599,7 +599,17 @@ select.form-control { cursor: pointer; }
 .exam-egzamin    { background: #dc2626; }
 .exam-kartkówka  { background: #d97706; }
 .exam-deadline   { background: #059669; }
+.exam-wyklad      { background: #0284c7; }
+.exam-cwiczenia   { background: #0d9488; }
+.exam-laboratoria { background: #c026d3; }
+.exam-zajecia     { background: #db2777; }
 .exam-inne       { background: #64748b; }
+
+/* Formularz dodawania terminu w modalu kalendarza */
+.cal-add-form { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.cal-add-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cal-add-form .form-group { margin-bottom: 10px; }
+.cal-add-form .full { grid-column: 1 / -1; }
 
 /* ===== CHAT ===== */
 .chat-container {

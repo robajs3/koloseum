@@ -23,7 +23,8 @@
   <meta name="apple-mobile-web-app-title" content="Koloseum">
 
   {% block extra_head %}{% endblock %}
-  <script>window.PREFIX = "{{ prefix }}";</script>
+  <script>window.PREFIX = "{{ prefix }}";
+  window.EXAM_TYPES = {{ exam_types|tojson }};</script>
 </head>
 <body>
 <div class="app-layout">

@@ -4,7 +4,7 @@ db = SQLAlchemy()
 
 from models.user_model import User
 from models.room_model import Room, RoomMember, Subject
-from models.exam_model import Exam, ChatMessage, ChatAttachment, StudyMaterial, Notification, ExamReminderLog
+from models.exam_model import EXAM_TYPES, normalize_exam_type, Exam, ChatMessage, ChatAttachment, StudyMaterial, Notification, ExamReminderLog
 from models.material_summary_model import MaterialSummary
 from models.folder_summary_model import FolderSummary
 from models.announcement_model import Announcement

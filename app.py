@@ -57,6 +57,8 @@ def create_app(config_class=Config) -> Flask:
     app.jinja_env.filters["localtime"] = to_local
     from services.preview_service import preview_kind
     app.jinja_env.globals["preview_kind"] = preview_kind
+    from models.exam_model import EXAM_TYPES
+    app.jinja_env.globals["exam_types"] = EXAM_TYPES
 
     login_manager = LoginManager()
     login_manager.init_app(app)

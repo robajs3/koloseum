@@ -111,7 +111,7 @@
           <div class="form-group">
             <label class="form-label">Typ</label>
             <select name="exam_type" class="form-control">
-              {% for v, l in [('kolokwium','Kolokwium'),('egzamin','Egzamin'),('kartkówka','Kartkówka'),('deadline','Deadline'),('inne','Inne')] %}
+              {% for v, l, _c in exam_types %}
               <option value="{{ v }}">{{ l }}</option>
               {% endfor %}
             </select>
@@ -137,8 +137,7 @@
   <h4 style="margin-bottom:10px;color:var(--text-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.5px">Nadchodzące</h4>
   {% for exam in upcoming_exams %}
   {% set days_left = (exam.exam_date - now).days %}
-  <div class="card mb-3" style="border-left:4px solid
-    {% if exam.exam_type=='kolokwium' %}#4f46e5{% elif exam.exam_type=='egzamin' %}#dc2626{% elif exam.exam_type=='kartkówka' %}#d97706{% elif exam.exam_type=='deadline' %}#7c3aed{% else %}#6b7280{% endif %}">
+  <div class="card mb-3" style="border-left:4px solid {{ (exam_types|selectattr(0, 'equalto', exam.exam_type)|first|default(('', '', '#64748b')))[2] }}">
     <div class="card-body" style="display:flex;align-items:center;gap:14px">
       <div style="text-align:center;min-width:48px">
         <div style="font-size:1.4rem;font-weight:700;line-height:1;color:var(--primary)">{{ (exam.exam_date|localtime).strftime('%d') }}</div>
@@ -150,7 +149,7 @@
           <span><i class="fas fa-clock"></i> {{ (exam.exam_date|localtime).strftime('%H:%M') }}</span>
           {% if exam.location %}<span><i class="fas fa-map-marker-alt"></i> {{ exam.location }}</span>{% endif %}
           <span class="badge badge-{% if exam.exam_type=='egzamin' %}danger{% elif exam.exam_type=='kolokwium' %}primary{% else %}gray{% endif %}">
-            {{ exam.exam_type }}
+            {{ (exam_types|selectattr(0, 'equalto', exam.exam_type)|first|default(('', exam.exam_type)))[1] }}
           </span>
         </div>
         {% if exam.description %}<div style="font-size:.78rem;color:var(--text-muted);margin-top:4px">{{ exam.description }}</div>{% endif %}
@@ -182,7 +181,7 @@
       {{ (exam.exam_date|localtime).strftime('%d.%m.%Y') }}
     </div>
     <div style="font-size:.85rem;font-weight:500;flex:1">{{ exam.title }}</div>
-    <span style="font-size:.7rem;color:var(--text-muted)">{{ exam.exam_type }}</span>
+    <span style="font-size:.7rem;color:var(--text-muted)">{{ (exam_types|selectattr(0, 'equalto', exam.exam_type)|first|default(('', exam.exam_type)))[1] }}</span>
   </div>
   {% endfor %}
   {% endif %}

@@ -105,23 +105,43 @@ const Calendar = {
     grid.innerHTML = html;
   },
 
-  showDayEvents(dateStr) {
+  _esc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  },
+
+  // Przedmioty, do których user może dodawać terminy (admin pokoju) — pobierane raz.
+  async _loadCreatableSubjects() {
+    if (this._subjects) return this._subjects;
+    try {
+      const r = await fetch(`${window.PREFIX}/calendar/subjects`);
+      this._subjects = r.ok ? await r.json() : [];
+    } catch { this._subjects = []; }
+    return this._subjects;
+  },
+
+  async showDayEvents(dateStr) {
     const evs = this.events[dateStr] || [];
-    if (!evs.length) return;
+    const subjects = await this._loadCreatableSubjects();
+    if (!evs.length && !subjects.length) return;
+
     const [y, m, d] = dateStr.split('-');
     let html = `<strong>📅 ${d}.${m}.${y}</strong><br><br>`;
+    if (!evs.length) {
+      html += `<div style="color:var(--text-muted);font-size:.8rem">Brak terminów w tym dniu.</div>`;
+    }
     evs.forEach(ev => {
       const url = ev.subject_id ? `${window.PREFIX}/subjects/${ev.subject_id}` : null;
       const inner = `
-        <div style="font-weight:600;font-size:.85rem;color:var(--text)">${ev.title}</div>
+        <div style="font-weight:600;font-size:.85rem;color:var(--text)">${this._esc(ev.title)}</div>
         <div style="font-size:.75rem;color:var(--text-muted);margin-top:2px">
-          ${ev.subject} • ${ev.time}${ev.location ? ' • ' + ev.location : ''}
+          ${this._esc(ev.type_label || ev.type)} • ${this._esc(ev.subject)} • ${this._esc(ev.time)}${ev.location ? ' • ' + this._esc(ev.location) : ''}
         </div>`;
       if (url) {
         html += `
           <a href="${url}"
              style="display:block;margin-bottom:8px;padding:10px 12px;background:var(--bg);
-                    border-radius:6px;border-left:3px solid ${ev.subject_color};
+                    border-radius:6px;border-left:3px solid ${this._esc(ev.subject_color)};
                     text-decoration:none;transition:opacity .15s"
              onmouseover="this.style.opacity='.75'"
              onmouseout="this.style.opacity='1'">
@@ -130,12 +150,91 @@ const Calendar = {
       } else {
         html += `
           <div style="margin-bottom:8px;padding:10px 12px;background:var(--bg);
-                      border-radius:6px;border-left:3px solid ${ev.subject_color}">
+                      border-radius:6px;border-left:3px solid ${this._esc(ev.subject_color)}">
             ${inner}
           </div>`;
       }
     });
+
+    if (subjects.length) html += this._addFormHtml(dateStr, subjects);
     showModal('Terminy', html);
+  },
+
+  _addFormHtml(dateStr, subjects) {
+    const types = (window.EXAM_TYPES || []);
+    const typeOpts = types.map(([value, label]) => `<option value="${this._esc(value)}">${this._esc(label)}</option>`).join('');
+    const subjOpts = subjects.map(s => `<option value="${s.id}">${this._esc(s.name)}</option>`).join('');
+    return `
+      <div class="cal-add-form">
+        <div style="font-weight:700;font-size:.85rem;margin-bottom:10px">
+          <i class="fas fa-plus" style="color:var(--primary);margin-right:6px"></i>Dodaj termin na ten dzień
+        </div>
+        <div class="row">
+          <div class="form-group full">
+            <label class="form-label">Tytuł *</label>
+            <input type="text" id="cal-add-title" class="form-control" maxlength="256" placeholder="np. Wykład 5">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Przedmiot *</label>
+            <select id="cal-add-subject" class="form-control">${subjOpts}</select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Typ</label>
+            <select id="cal-add-type" class="form-control">${typeOpts}</select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Godzina</label>
+            <input type="time" id="cal-add-time" class="form-control" value="08:00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Miejsce</label>
+            <input type="text" id="cal-add-location" class="form-control" maxlength="256" placeholder="np. Sala 101">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Opis</label>
+            <input type="text" id="cal-add-desc" class="form-control" maxlength="512" placeholder="Opcjonalny opis">
+          </div>
+        </div>
+        <button type="button" id="cal-add-btn" class="btn btn-primary btn-sm"
+                onclick="Calendar.submitNewEvent('${dateStr}')">
+          <i class="fas fa-plus"></i> Dodaj termin
+        </button>
+      </div>`;
+  },
+
+  async submitNewEvent(dateStr) {
+    const val = id => document.getElementById(id)?.value ?? '';
+    const title = val('cal-add-title').trim();
+    if (!title) { showToast('Podaj tytuł terminu.', 'warning'); return; }
+    const btn = document.getElementById('cal-add-btn');
+    if (btn) btn.disabled = true;
+    try {
+      const r = await fetch(`${window.PREFIX}/calendar/events/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          date: dateStr,
+          time: val('cal-add-time') || '08:00',
+          subject_id: val('cal-add-subject'),
+          exam_type: val('cal-add-type'),
+          location: val('cal-add-location'),
+          description: val('cal-add-desc'),
+        }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        showToast(this._esc(data.error || 'Nie udało się dodać terminu.'), 'danger');
+        if (btn) btn.disabled = false;
+        return;
+      }
+      closeModal();
+      showToast('Termin dodany!', 'success');
+      this.render();
+    } catch {
+      showToast('Błąd połączenia z serwerem.', 'danger');
+      if (btn) btn.disabled = false;
+    }
   },
 
   prev() {

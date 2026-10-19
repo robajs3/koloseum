@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash, abort, send_from_directory, current_app, jsonify
 from flask_login import login_required, current_user
-from models import Subject, Exam, ChatMessage, ChatAttachment, StudyMaterial, RoomMember, db
+from models import normalize_exam_type, Subject, Exam, ChatMessage, ChatAttachment, StudyMaterial, RoomMember, db
 from services.room_service import RoomService
 from services.exam_service import ExamService
 from services.file_service import FileService
@@ -128,7 +128,7 @@ def create_exam(subject_id: int):
     desc = request.form.get("description", "").strip()
     date_str = request.form.get("exam_date", "")
     location = request.form.get("location", "").strip()
-    exam_type = request.form.get("exam_type", "kolokwium")
+    exam_type = normalize_exam_type(request.form.get("exam_type", "kolokwium"))
     if not title or not date_str:
         flash("Wypełnij wymagane pola.", "danger")
         return redirect(url_for("subjects.subject_detail", subject_id=subject_id))

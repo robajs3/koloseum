@@ -2,6 +2,28 @@ from models import db
 from datetime import datetime
 
 
+# Typy terminów: (wartość w bazie, etykieta, kolor). To jedyne miejsce, gdzie
+# są zdefiniowane — formularze, legenda kalendarza i walidacja biorą stąd.
+# Wartości ASCII (wyklad, cwiczenia...) żeby bez problemu działały jako klasy CSS.
+EXAM_TYPES = [
+    ("kolokwium",  "Kolokwium",  "#4f46e5"),
+    ("egzamin",    "Egzamin",    "#dc2626"),
+    ("kartkówka",  "Kartkówka",  "#d97706"),
+    ("deadline",   "Deadline",   "#059669"),
+    ("wyklad",     "Wykład",     "#0284c7"),
+    ("cwiczenia",  "Ćwiczenia",  "#0d9488"),
+    ("laboratoria", "Laboratoria", "#c026d3"),
+    ("zajecia",    "Zajęcia",    "#db2777"),
+    ("inne",       "Inne",       "#64748b"),
+]
+EXAM_TYPE_VALUES = {v for v, _, _ in EXAM_TYPES}
+
+
+def normalize_exam_type(value: str | None) -> str:
+    """Nieznany typ (np. podrzucony ręcznie w formularzu) ląduje w 'inne'."""
+    return value if value in EXAM_TYPE_VALUES else "inne"
+
+
 class Exam(db.Model):
     __tablename__ = "exams"
 
@@ -11,7 +33,7 @@ class Exam(db.Model):
     description = db.Column(db.Text, nullable=True)
     exam_date = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(256), nullable=True)
-    exam_type = db.Column(db.String(50), default="kolokwium")  # kolokwium, egzamin, kartkówka, deadline, inne
+    exam_type = db.Column(db.String(50), default="kolokwium")  # patrz EXAM_TYPES
     created_by = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

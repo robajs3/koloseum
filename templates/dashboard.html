@@ -53,7 +53,7 @@
         </div>
         <!-- Legend -->
         <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
-          {% for type, label in [('kolokwium','Kolokwium'),('egzamin','Egzamin'),('kartkówka','Kartkówka'),('deadline','Deadline'),('inne','Inne')] %}
+          {% for type, label, _color in exam_types %}
           <div style="display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--text-muted)">
             <span style="width:10px;height:10px;border-radius:2px;background:var(--c)" class="exam-{{ type }}"></span>
             {{ label }}
