@@ -8,12 +8,12 @@ wszystko (tak jak w pozostałych kontrolerach).
 """
 import re
 import time
-from sqlalchemy import or_
+from sqlalchemy import and_, or_
 from flask import url_for
 
 from models import (
     db, Room, RoomMember, Subject, User, Exam, StudyMaterial,
-    ChatMessage, ChatAttachment,
+    ChatMessage, ChatAttachment, MaterialSummary, FolderSummary,
 )
 from services.chat_service import ChatService
 from services import filevault_client
@@ -29,6 +29,7 @@ CATEGORY_LABELS = {
     "subjects": "Przedmioty",
     "exams": "Terminy",
     "materials": "Materiały",
+    "ai_overviews": "Podsumowania AI plików",
     "attachments": "Załączniki z czatu",
     "messages": "Wiadomości z czatów",
     "users": "Użytkownicy",
@@ -48,6 +49,24 @@ def _like(q: str) -> str:
 
 def _contains(column, q: str):
     return column.ilike(_like(q), escape="\\")
+
+
+_MD_MARKUP = re.compile(r"[*_`#>]+|^\s*[-•]\s+", re.MULTILINE)
+
+
+def _plain(text: str | None) -> str:
+    """Podsumowania AI są w markdownie — do podglądu w wynikach zdejmujemy znaczniki."""
+    return _MD_MARKUP.sub("", text or "")
+
+
+def _tokens(q: str) -> list[str]:
+    return [t for t in q.split() if t]
+
+
+def _contains_all(column, q: str):
+    """Każde słowo zapytania musi wystąpić w kolumnie (w dowolnej kolejności) —
+    podsumowanie to długi tekst, więc dopasowanie całej frazy byłoby zbyt wąskie."""
+    return and_(*[_contains(column, t) for t in _tokens(q)])
 
 
 def _snippet(text: str | None, q: str, width: int = 70) -> str:
@@ -152,6 +171,9 @@ class SearchService:
             "icon": "link" if m.is_filevault_link else "file",
         } for m in materials]
 
+        # --- Podsumowania AI plików (materiały + foldery FileVault) ------
+        results["ai_overviews"] = SearchService._search_ai_overviews(q, limit, scope)
+
         # --- Załączniki z czatów przedmiotów -----------------------------
         attachments = (
             ChatAttachment.query.join(ChatMessage, ChatMessage.id == ChatAttachment.message_id)
@@ -189,6 +211,54 @@ class SearchService:
         results["users"] = SearchService._search_users(user, q, limit)
 
         return {k: v for k, v in results.items() if v}
+
+    @staticmethod
+    def _search_ai_overviews(q: str, limit: int, scope) -> list[dict]:
+        """Szuka w treści wygenerowanych podsumowań AI (tylko gotowych).
+        Zakres pokojów ten sam co dla materiałów — podsumowanie jest widoczne
+        dokładnie dla tych, którzy widzą sam materiał/przedmiot."""
+        out: list[dict] = []
+
+        mats = (
+            MaterialSummary.query
+            .join(StudyMaterial, StudyMaterial.id == MaterialSummary.material_id)
+            .join(Subject, Subject.id == StudyMaterial.subject_id)
+            .join(Room, Room.id == Subject.room_id)
+            .filter(Room.is_active.is_(True), scope(Subject.room_id),
+                    MaterialSummary.status == MaterialSummary.STATUS_DONE)
+            .filter(_contains_all(MaterialSummary.summary, q))
+            .order_by(MaterialSummary.finished_at.desc()).limit(limit).all()
+        )
+        for ms in mats:
+            m = ms.material
+            out.append({
+                "title": m.title,
+                "subtitle": f"{m.subject.name} · {_snippet(_plain(ms.summary), _tokens(q)[0])}",
+                "url": url_for("subjects.subject_detail", subject_id=m.subject_id) + "#materials",
+                "icon": "wand-magic-sparkles",
+            })
+
+        # Przegląd folderu przypiętego do przedmiotu — pomijamy nieaktualny
+        # (zrobiony dla innego linku niż obecny, jak w SummaryService.folder_to_dict).
+        folders = (
+            FolderSummary.query
+            .join(Subject, Subject.id == FolderSummary.subject_id)
+            .join(Room, Room.id == Subject.room_id)
+            .filter(Room.is_active.is_(True), scope(Subject.room_id),
+                    FolderSummary.status == FolderSummary.STATUS_DONE,
+                    FolderSummary.source_url == Subject.filevault_folder_url)
+            .filter(_contains_all(FolderSummary.summary, q))
+            .order_by(FolderSummary.finished_at.desc()).limit(limit).all()
+        )
+        for fs in folders:
+            out.append({
+                "title": f"{fs.subject.name} — folder FileVault",
+                "subtitle": _snippet(_plain(fs.summary), _tokens(q)[0]),
+                "url": url_for("subjects.subject_detail", subject_id=fs.subject_id) + "#sum-panel-folder",
+                "icon": "folder-tree",
+            })
+
+        return out[:limit]
 
     @staticmethod
     def _search_users(user: User, q: str, limit: int) -> list[dict]:
