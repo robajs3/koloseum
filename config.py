@@ -45,13 +45,17 @@ class Config:
     AI_SUMMARY_ENABLED = os.getenv("AI_SUMMARY_ENABLED", "true").lower() == "true"
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
     AI_SUMMARY_MODEL = os.getenv("AI_SUMMARY_MODEL", "gemma3:4b")
-    # Ile znaków tekstu z PDF trafia do modelu (reszta jest ucinana). Na CPU czas
-    # generowania rośnie niemal liniowo z długością wejścia — to główne pokrętło szybkości.
-    AI_SUMMARY_MAX_CHARS = int(os.getenv("AI_SUMMARY_MAX_CHARS", "10000"))
-    # Okno kontekstu w tokenach — musi pomieścić tekst + odpowiedź.
+    # Ile znaków tekstu z PDF w ogóle czytamy (reszta jest ucinana). Długie dokumenty
+    # są dzielone na fragmenty i streszczane po kolei — im więcej, tym dłużej.
+    AI_SUMMARY_MAX_CHARS = int(os.getenv("AI_SUMMARY_MAX_CHARS", "40000"))
+    # Rozmiar jednego fragmentu (znaki). Musi się zmieścić w oknie kontekstu razem
+    # z promptem i odpowiedzią: ~6000 znaków ≈ 2500 tokenów przy num_ctx 4096.
+    # Dokument <= tej wartości idzie jednym zapytaniem. Max 10 fragmentów.
+    AI_SUMMARY_CHUNK_CHARS = int(os.getenv("AI_SUMMARY_CHUNK_CHARS", "6000"))
+    # Okno kontekstu w tokenach — musi pomieścić fragment + prompt + odpowiedź.
     AI_SUMMARY_NUM_CTX = int(os.getenv("AI_SUMMARY_NUM_CTX", "4096"))
-    # Maks. długość odpowiedzi w tokenach (podsumowanie ma ~250 słów).
-    AI_SUMMARY_MAX_TOKENS = int(os.getenv("AI_SUMMARY_MAX_TOKENS", "700"))
+    # Maks. długość odpowiedzi w tokenach; 0 = bez limitu.
+    AI_SUMMARY_MAX_TOKENS = int(os.getenv("AI_SUMMARY_MAX_TOKENS", "0"))
     # Liczba wątków CPU dla modelu; 0 = Ollama dobiera sama. Najlepiej ustawić
     # liczbę FIZYCZNYCH rdzeni (nie wątków HT).
     AI_SUMMARY_NUM_THREADS = int(os.getenv("AI_SUMMARY_NUM_THREADS", "0"))

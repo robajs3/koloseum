@@ -634,7 +634,7 @@ function paintSummary(id, data) {
   };
 
   if (data.status === 'pending') {
-    body.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;margin-right:6px"></span> Generuję podsumowanie…';
+    body.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;margin-right:6px"></span> Generuję podsumowanie… (długie pliki mogą potrwać kilka–kilkanaście minut)';
     summaryTimers[id] = setTimeout(() => pollSummary(id), 3000);
   } else if (data.status === 'done') {
     body.innerHTML = renderSummary(data.summary || '');

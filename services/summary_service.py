@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 _gen_lock = threading.Semaphore(1)
 
 # "pending" starsze niż to uznajemy za zawieszone (np. restart workera w trakcie)
-STALE_AFTER = timedelta(minutes=20)
+STALE_AFTER = timedelta(minutes=60)  # długie PDF-y = wiele zapytań po kolei
 
 
 def is_summarizable(material: StudyMaterial) -> bool:
