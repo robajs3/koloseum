@@ -33,7 +33,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 import requests
 from flask import current_app
 
-from services.errors import AIError
+from services.errors import AIError, NotAccepted
 
 logger = logging.getLogger(__name__)
 
@@ -124,12 +124,14 @@ def _filename(content_disposition: str | None) -> str:
 
 
 @contextlib.contextmanager
-def fetched_file(path: str, sso_cookie: str | None = None):
+def fetched_file(path: str, sso_cookie: str | None = None, accept=None):
     """Pobiera plik do pliku tymczasowego i go po sobie sprząta.
 
         with fetched_file(path, cookie) as (tmp_path, filename): ...
 
-    Limit rozmiaru (AI_FETCH_MAX_MB) egzekwowany na faktycznie pobranych bajtach."""
+    Limit rozmiaru (AI_FETCH_MAX_MB) egzekwowany na faktycznie pobranych bajtach.
+    `accept(nazwa_pliku) -> bool` pozwala odrzucić plik (NotAccepted) po samych
+    nagłówkach, bez pobierania treści — np. podgląd interesują tylko dokumenty Office."""
     max_mb = current_app.config.get("AI_FETCH_MAX_MB", 25)
     max_bytes = max_mb * 1024 * 1024
     resp = _open(path, sso_cookie)
@@ -142,6 +144,9 @@ def fetched_file(path: str, sso_cookie: str | None = None):
                 and ctype in ("text/html", "application/xhtml+xml"):
             # strona zamiast pliku: formularz hasła, ekran logowania, komunikat o błędzie
             raise AIError("Link nie zwrócił pliku (wymaga hasła, wygasł albo prowadzi do strony).")
+
+        if accept is not None and not accept(name):
+            raise NotAccepted("Format nieobsługiwany przez ten podgląd.")
 
         too_big = AIError(f"Plik jest za duży do podsumowania (limit {max_mb} MB).")
         length = resp.headers.get("Content-Length", "")

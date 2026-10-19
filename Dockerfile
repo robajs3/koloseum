@@ -5,6 +5,16 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libpq-dev gcc curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Opcjonalnie: LibreOffice do podglądu starych formatów (DOC/XLS/PPT/ODG…) — konwersja do PDF.
+# Domyślnie wyłączone (~500 MB); build: docker compose build --build-arg INSTALL_LIBREOFFICE=1
+# Nowe formaty (DOCX/XLSX/PPTX/ODF/CSV/IPYNB/RTF) działają bez niego.
+ARG INSTALL_LIBREOFFICE=0
+RUN if [ "$INSTALL_LIBREOFFICE" = "1" ]; then \
+      apt-get update \
+      && apt-get install -y --no-install-recommends libreoffice-writer libreoffice-calc libreoffice-impress fonts-liberation \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 WORKDIR /app
 
 COPY requirements.txt .

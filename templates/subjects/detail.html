@@ -215,12 +215,16 @@
         {% for att in msg.attachments %}
         {# Określ typ załącznika #}
         {% set ext = att.original_filename.rsplit('.', 1)[-1].lower() if (att.original_filename and '.' in att.original_filename) else '' %}
-        {% set is_image = ext in ['png','jpg','jpeg','gif','webp','svg'] %}
-        {% set is_pdf   = ext == 'pdf' %}
-        {% set is_text  = ext in ['txt','md','csv','py','js','html','css','json','xml'] %}
-        {% set is_video = ext in ['mp4','webm','ogg'] %}
-        {% set is_audio = ext in ['mp3','wav','oga'] %}
-        {% set can_preview = (not att.filevault_link) and (is_image or is_pdf or is_text or is_video or is_audio) %}
+        {% set kind = preview_kind(att.original_filename) %}
+        {% set is_image = kind == 'image' %}
+        {% set is_pdf   = kind == 'pdf' %}
+        {% set is_text  = kind == 'text' %}
+        {% set is_video = kind == 'video' %}
+        {% set is_audio = kind == 'audio' %}
+        {% set is_docx  = ext in ['docx','doc','docm','dotx','odt','ott','rtf'] %}
+        {% set is_xlsx  = ext in ['xlsx','xls','xlsm','xltx','ods','ots','csv','tsv'] %}
+        {% set is_pptx  = ext in ['pptx','ppt','pps','ppsx','pptm','potx','odp','otp'] %}
+        {% set can_preview = (not att.filevault_link) and kind %}
 
         {% if att.filevault_link %}
           {% set file_icon = 'link' %}{% set icon_color = 'var(--secondary)' %}
@@ -232,6 +236,12 @@
           {% set file_icon = 'file-video' %}{% set icon_color = '#7c3aed' %}
         {% elif is_audio %}
           {% set file_icon = 'file-audio' %}{% set icon_color = '#d97706' %}
+        {% elif is_docx %}
+          {% set file_icon = 'file-word' %}{% set icon_color = '#2563eb' %}
+        {% elif is_xlsx %}
+          {% set file_icon = 'file-excel' %}{% set icon_color = '#059669' %}
+        {% elif is_pptx %}
+          {% set file_icon = 'file-powerpoint' %}{% set icon_color = '#ea580c' %}
         {% elif is_text %}
           {% set file_icon = 'file-code' %}{% set icon_color = '#64748b' %}
         {% else %}
@@ -239,16 +249,17 @@
         {% endif %}
 
         {% set att_url = url_for('subjects.download_attachment', attachment_id=att.id) %}
-        {% set preview_type = 'image' if is_image else 'pdf' if is_pdf else 'video' if is_video else 'audio' if is_audio else 'text' %}
+        {% set att_prev = url_for('subjects.preview_attachment_doc' if kind == 'office' else 'subjects.preview_attachment', attachment_id=att.id) %}
+        {% set preview_type = kind %}
 
         <div style="margin-top:6px">
           {% if can_preview %}
           <div style="display:flex;align-items:center;gap:8px;cursor:pointer"
-               onclick="openPreview('{{ att_url }}', '{{ att.original_filename|e }}', '{{ preview_type }}')">
+               onclick="openPreview('{{ att_prev }}', '{{ att.original_filename|e }}', '{{ preview_type }}', '{{ att_url }}')">
             <div class="mat-thumb mat-thumb--clickable"
                  style="--thumb-color:{{ icon_color }};width:36px;height:36px">
               {% if is_image %}
-              <img src="{{ att_url }}" alt="{{ att.original_filename|e }}"
+              <img src="{{ att_prev }}" alt="{{ att.original_filename|e }}"
                    loading="lazy"
                    onerror="this.parentElement.classList.add('mat-thumb--fallback');this.remove()">
               {% else %}
@@ -371,14 +382,19 @@
     <div class="card-body" style="padding:0">
       {% for mat in materials %}
       {% set ext = mat.original_filename.rsplit('.', 1)[-1].lower() if (mat.original_filename and '.' in mat.original_filename) else '' %}
-      {% set is_image = ext in ['png','jpg','jpeg','gif','webp','svg'] %}
-      {% set is_pdf   = ext == 'pdf' %}
-      {% set is_text  = ext in ['txt','md','csv','py','js','html','css','json','xml'] %}
-      {% set is_video = ext in ['mp4','webm','ogg'] %}
-      {% set is_audio = ext in ['mp3','wav','oga'] %}
-      {% set is_docx  = ext in ['docx','doc'] %}
-      {% set is_xlsx  = ext in ['xlsx','xls'] %}
-      {% set can_preview = (not mat.is_filevault_link) and (is_image or is_pdf or is_text or is_video or is_audio) %}
+      {% set kind = preview_kind(mat.original_filename) if not mat.is_filevault_link else none %}
+      {% set is_image = kind == 'image' %}
+      {% set is_pdf   = kind == 'pdf' %}
+      {% set is_text  = kind == 'text' %}
+      {% set is_video = kind == 'video' %}
+      {% set is_audio = kind == 'audio' %}
+      {% set is_docx  = ext in ['docx','doc','docm','dotx','odt','ott','rtf'] %}
+      {% set is_xlsx  = ext in ['xlsx','xls','xlsm','xltx','ods','ots','csv','tsv'] %}
+      {% set is_pptx  = ext in ['pptx','ppt','pps','ppsx','pptm','potx','odp','otp'] %}
+      {% set can_preview = (not mat.is_filevault_link) and kind %}
+      {% set mat_preview_url = url_for('subjects.preview_material_doc' if kind == 'office' else 'subjects.preview_material', subject_id=subject.id, material_id=mat.id) %}
+      {% set mat_dl_url = url_for('subjects.download_material', subject_id=subject.id, material_id=mat.id) %}
+      {% set fv_doc_url = url_for('subjects.preview_material_doc', subject_id=subject.id, material_id=mat.id) if (mat.is_filevault_link and summarizable.get(mat.id) == 'file') else '' %}
 
       {% if mat.is_filevault_link %}
         {% set file_icon = 'link' %}{% set icon_color = 'var(--secondary)' %}
@@ -390,6 +406,8 @@
         {% set file_icon = 'file-word' %}{% set icon_color = '#2563eb' %}
       {% elif is_xlsx %}
         {% set file_icon = 'file-excel' %}{% set icon_color = '#059669' %}
+      {% elif is_pptx %}
+        {% set file_icon = 'file-powerpoint' %}{% set icon_color = '#ea580c' %}
       {% elif is_video %}
         {% set file_icon = 'file-video' %}{% set icon_color = '#7c3aed' %}
       {% elif is_audio %}
@@ -405,10 +423,10 @@
            class="mat-row">
         <!-- Thumbnail -->
         {% if can_preview %}
-          {% set preview_type = 'image' if is_image else 'pdf' if is_pdf else 'video' if is_video else 'audio' if is_audio else 'text' %}
-          {% set preview_url = url_for('subjects.preview_material', subject_id=subject.id, material_id=mat.id) %}
+          {% set preview_type = kind %}
+          {% set preview_url = mat_preview_url %}
           <div class="mat-thumb mat-thumb--clickable"
-               onclick="openPreview('{{ preview_url }}', '{{ mat.title|e }}', '{{ preview_type }}')"
+               onclick="openPreview('{{ preview_url }}', '{{ mat.title|e }}', '{{ preview_type }}', '{{ mat_dl_url }}')"
                title="Kliknij, aby otworzyć podgląd"
                style="--thumb-color:{{ icon_color }}">
             {% if is_image %}
@@ -422,7 +440,7 @@
           </div>
         {% elif mat.is_filevault_link %}
           <div class="mat-thumb mat-thumb--clickable"
-               onclick="openLinkPreview('{{ mat.filevault_link|e }}', '{{ mat.title|e }}')"
+               onclick="openLinkPreview('{{ mat.filevault_link|e }}', '{{ mat.title|e }}', '{{ fv_doc_url }}')"
                title="Kliknij, aby otworzyć podgląd"
                style="--thumb-color:{{ icon_color }}">
             <i class="fas fa-{{ file_icon }}"></i>
@@ -462,18 +480,18 @@
         <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
           {% if can_preview %}
           <button class="btn btn-ghost btn-sm"
-                  onclick="openPreview('{{ url_for('subjects.preview_material', subject_id=subject.id, material_id=mat.id) }}', '{{ mat.title|e }}', '{{ 'image' if is_image else 'pdf' if is_pdf else 'video' if is_video else 'audio' if is_audio else 'text' }}')"
+                  onclick="openPreview('{{ mat_preview_url }}', '{{ mat.title|e }}', '{{ kind }}', '{{ mat_dl_url }}')"
                   title="Podgląd">
             <i class="fas fa-eye"></i>
           </button>
           {% elif mat.is_filevault_link %}
           <button class="btn btn-ghost btn-sm"
-                  onclick="openLinkPreview('{{ mat.filevault_link|e }}', '{{ mat.title|e }}')"
+                  onclick="openLinkPreview('{{ mat.filevault_link|e }}', '{{ mat.title|e }}', '{{ fv_doc_url }}')"
                   title="Podgląd">
             <i class="fas fa-eye"></i>
           </button>
-          {% elif is_docx or is_xlsx %}
-          <span class="btn btn-ghost btn-sm" style="cursor:default;opacity:.4" title="Podgląd niedostępny dla tego formatu">
+          {% elif is_docx or is_xlsx or is_pptx %}
+          <span class="btn btn-ghost btn-sm" style="cursor:default;opacity:.4" title="Podgląd starych formatów (DOC/XLS/PPT) wymaga LibreOffice na serwerze — zapisz plik w nowszym formacie albo pobierz">
             <i class="fas fa-eye-slash"></i>
           </span>
           {% endif %}
@@ -808,15 +826,16 @@ window.onFilevaultPick = function(target, shareUrl, name, isFolder) {
 /* ===== PODGLĄD PLIKÓW ===== */
 let currentPreviewUrl = null;
 
-function openPreview(url, title, type) {
+function openPreview(url, title, type, downloadUrl) {
   currentPreviewUrl = url;
+  if (type === 'office') { openOfficePreview(url, title, downloadUrl || url, null); return; }
   const modal   = document.getElementById('preview-modal');
   const body    = document.getElementById('preview-body');
   const titleEl = document.getElementById('preview-title');
   const dlBtn   = document.getElementById('preview-download-btn');
 
   titleEl.textContent = title;
-  dlBtn.href = url;
+  dlBtn.href = downloadUrl || url;
   dlBtn.removeAttribute('target');
   dlBtn.removeAttribute('rel');
 
@@ -891,6 +910,52 @@ function openPreview(url, title, type) {
   }
 }
 
+/* ===== PODGLĄD DOKUMENTÓW (Word, Excel, PowerPoint, ODF, CSV, notebooki, RTF) =====
+   Serwer renderuje dokument do bezpiecznego HTML-a (albo PDF-a po konwersji
+   LibreOffice). HTML wstawiamy do <iframe sandbox srcdoc> — bez skryptów i bez
+   dostępu do originu aplikacji; PDF pokazujemy z blob URL.
+   fvLink != null: materiał to link FileVault — przy 415 wracamy do jego podglądu. */
+let officePreviewBlobUrl = null;
+function openOfficePreview(url, title, downloadUrl, fvLink) {
+  currentPreviewUrl = url;
+  const modal   = document.getElementById('preview-modal');
+  const body    = document.getElementById('preview-body');
+  const dlBtn   = document.getElementById('preview-download-btn');
+  document.getElementById('preview-title').textContent = title;
+  dlBtn.href = downloadUrl || url;
+  if (fvLink) { dlBtn.target = '_blank'; dlBtn.rel = 'noopener'; }
+  else { dlBtn.removeAttribute('target'); dlBtn.removeAttribute('rel'); }
+
+  body.style.padding = '0';
+  body.style.display = 'block';
+  body.style.alignItems = 'unset';
+  body.style.justifyContent = 'unset';
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;flex-direction:column;'
+                 + 'gap:10px;min-height:70vh;color:var(--text-muted)"><div class="spinner"></div>'
+                 + '<div style="font-size:.82rem">Przygotowuję podgląd dokumentu…</div></div>';
+
+  fetch(url, { credentials: 'same-origin' }).then(async r => {
+    if (currentPreviewUrl !== url && currentPreviewUrl !== fvLink) return;  // zamknięto / otwarto inny
+    if (r.status === 415 && fvLink) { openLinkPreview(fvLink, title); return; }
+    const type = (r.headers.get('Content-Type') || '').split(';')[0];
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'width:100%;height:100%;min-height:70vh;border:0;background:#fff';
+    if (type === 'application/pdf' && r.ok) {
+      const blob = await r.blob();
+      if (officePreviewBlobUrl) URL.revokeObjectURL(officePreviewBlobUrl);
+      officePreviewBlobUrl = URL.createObjectURL(blob);
+      frame.src = officePreviewBlobUrl;
+    } else {
+      frame.setAttribute('sandbox', 'allow-popups');   // brak skryptów i same-origin
+      frame.srcdoc = await r.text();                    // błędy też są ładnymi stronami HTML
+    }
+    body.innerHTML = '';
+    body.appendChild(frame);
+  }).catch(() => showPreviewError('Nie można wczytać podglądu dokumentu.'));
+}
+
 /* ===== PODGLĄD LINKU FILEVAULT (materiały udostępnione jako link) =====
    Linki FileVault nie mają lokalnego pliku w Koloseum, więc nie da się ich
    podejrzeć przez openPreview() (to obsługuje tylko pliki wgrane wprost do
@@ -939,7 +1004,10 @@ function deriveFilevaultPreviewUrl(link) {
   return link;
 }
 
-function openLinkPreview(link, title) {
+function openLinkPreview(link, title, docUrl) {
+  // Linki do pojedynczego pliku FileVault: najpierw próbujemy własnego renderera
+  // dokumentów (Word/Excel/PowerPoint…); 415 = to nie dokument -> zwykły podgląd FileVault.
+  if (docUrl) { openOfficePreview(docUrl, title, link, link); return; }
   currentPreviewUrl = link;
   const modal   = document.getElementById('preview-modal');
   const body    = document.getElementById('preview-body');

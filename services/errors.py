@@ -9,3 +9,7 @@ class AIBackendError(AIError):
     """Problem po stronie serwera AI (Ollama niedostępna, timeout, brak modelu).
     Dotyczy całego zadania, nie jednego pliku — przy przeglądzie folderu nie ma
     sensu próbować kolejnych plików, więc przerywamy całość."""
+
+
+class NotAccepted(AIError):
+    """Plik z FileVault odrzucony przez filtr `accept` jeszcze przed pobraniem treści."""

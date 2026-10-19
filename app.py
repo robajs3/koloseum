@@ -55,6 +55,8 @@ def create_app(config_class=Config) -> Flask:
     # wyświetlaniu — patrz utils/timezone.py. Użycie w szablonach:
     # {{ (obj.created_at|localtime).strftime('%H:%M') }}
     app.jinja_env.filters["localtime"] = to_local
+    from services.preview_service import preview_kind
+    app.jinja_env.globals["preview_kind"] = preview_kind
 
     login_manager = LoginManager()
     login_manager.init_app(app)

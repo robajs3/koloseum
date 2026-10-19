@@ -5,7 +5,8 @@ from services.room_service import RoomService
 from services.exam_service import ExamService
 from services.file_service import FileService
 from services.summary_service import SummaryService, is_summarizable, source_kind
-from services import filevault_fetch
+from services import filevault_fetch, preview_service
+from services.errors import AIError, NotAccepted
 from utils.timezone import to_utc, utc_now
 from datetime import datetime
 import os
@@ -42,36 +43,27 @@ def is_room_admin(subject: Subject) -> bool:
     return member and member.role == "admin" or current_user.is_global_admin
 
 
-# Rozszerzenia obsługiwane przez podgląd inline
+# Rozszerzenia serwowane inline do podglądu (obrazy, PDF, wideo, audio, tekst/kod).
+# Dokumenty Office itd. idą osobną ścieżką — patrz preview_material_doc.
 PREVIEWABLE_MIMETYPES = {
-    # Obrazy
-    ".png":  "image/png",
-    ".jpg":  "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".gif":  "image/gif",
-    ".webp": "image/webp",
-    ".svg":  "image/svg+xml",
-    # PDF
-    ".pdf":  "application/pdf",
-    # Tekst / kod
-    ".txt":  "text/plain",
-    ".md":   "text/plain",
-    ".csv":  "text/plain",
-    ".py":   "text/plain",
-    ".js":   "text/plain",
-    ".html": "text/plain",
-    ".css":  "text/plain",
-    ".json": "text/plain",
-    ".xml":  "text/plain",
-    # Video
-    ".mp4":  "video/mp4",
-    ".webm": "video/webm",
-    ".ogg":  "video/ogg",
-    # Audio
-    ".mp3":  "audio/mpeg",
-    ".wav":  "audio/wav",
-    ".oga":  "audio/ogg",
+    ext: preview_service.mimetype_for("x" + ext)  # mimetype_for oczekuje nazwy pliku, nie samego rozszerzenia
+    for ext in (preview_service.IMAGE_EXTS | preview_service.PDF_EXTS | preview_service.VIDEO_EXTS
+                | preview_service.AUDIO_EXTS | preview_service.TEXT_EXTS)
 }
+
+
+def _inline_response(folder: str, filename: str, original: str, mimetype: str):
+    response = send_from_directory(folder, filename, mimetype=mimetype)
+    response.headers["Content-Disposition"] = f'inline; filename="{preview_service.e(original)}"'
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    if mimetype == "image/svg+xml":
+        # SVG otwarty bezpośrednio mógłby wykonać skrypt w originie aplikacji
+        response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"
+    return response
+
+
+def _preview_cache_dir() -> str:
+    return os.path.join(current_app.config["UPLOAD_FOLDER"], "preview_cache")
 
 
 @subject_bp.route("/subjects")
@@ -218,7 +210,7 @@ def preview_material(subject_id: int, material_id: int):
     """Serwuje plik inline do podglądu w przeglądarce (nie jako attachment)."""
     subject = get_subject_or_404(subject_id)
     require_subject_access(subject)
-    material = StudyMaterial.query.get_or_404(material_id)
+    material = _get_material_in_subject(subject_id, material_id)
 
     if material.is_filevault_link:
         abort(400)  # linki FileVault nie mają lokalnego pliku
@@ -227,21 +219,46 @@ def preview_material(subject_id: int, material_id: int):
     if not path or not os.path.exists(path):
         abort(404)
 
-    ext = os.path.splitext(material.original_filename)[1].lower()
-    mimetype = PREVIEWABLE_MIMETYPES.get(ext)
+    folder = os.path.join(current_app.config["UPLOAD_FOLDER"], "materials")
+    mimetype = PREVIEWABLE_MIMETYPES.get(os.path.splitext(material.original_filename or "")[1].lower())
     if not mimetype:
         # Plik nie obsługuje podglądu — wyślij jako attachment
-        folder = os.path.join(current_app.config["UPLOAD_FOLDER"], "materials")
         return send_from_directory(folder, material.filename, as_attachment=True,
                                    download_name=material.original_filename)
+    return _inline_response(folder, material.filename, material.original_filename, mimetype)
 
-    folder = os.path.join(current_app.config["UPLOAD_FOLDER"], "materials")
-    response = send_from_directory(folder, material.filename, mimetype=mimetype)
-    # inline — wyświetl w przeglądarce zamiast pobierać
-    response.headers["Content-Disposition"] = (
-        f"inline; filename=\"{material.original_filename}\""
-    )
-    return response
+
+@subject_bp.route("/subjects/<int:subject_id>/materials/<int:material_id>/preview-doc")
+@login_required
+def preview_material_doc(subject_id: int, material_id: int):
+    """Podgląd dokumentów Office/ODF/CSV/… wyrenderowanych po stronie serwera (HTML lub PDF).
+    Działa też dla materiałów będących linkiem do pojedynczego pliku FileVault; gdy plik
+    nie jest dokumentem do renderowania, zwraca 415 (front wraca wtedy do podglądu FileVault)."""
+    subject = get_subject_or_404(subject_id)
+    require_subject_access(subject)
+    material = _get_material_in_subject(subject_id, material_id)
+
+    if material.is_filevault_link:
+        parsed = filevault_fetch.parse_link(material.filevault_link)
+        if not parsed or parsed[0] != "file":
+            return preview_service.error_response("Podgląd dostępny tylko dla pojedynczych plików.", 415)
+        try:
+            with filevault_fetch.fetched_file(
+                    parsed[1], _sso_cookie(),
+                    accept=lambda n: not n or preview_service.can_render(n)) as (tmp, name):
+                # `tmp` znika po wyjściu z bloku — HTML renderujemy w środku; PDF
+                # z konwersji LibreOffice jest osobnym plikiem tymczasowym.
+                return preview_service.document_response(tmp, name or material.title)
+        except NotAccepted:
+            return preview_service.error_response("Ten format nie ma podglądu dokumentu.", 415)
+        except AIError as e:
+            return preview_service.error_response(str(e), 502)
+
+    path = FileService.get_material_path(material)
+    if not path or not os.path.exists(path):
+        return preview_service.error_response("Nie znaleziono pliku.", 404)
+    return preview_service.document_response(
+        path, material.original_filename, _preview_cache_dir(), f"m_{material.filename}")
 
 
 @subject_bp.route("/subjects/<int:subject_id>/materials/<int:material_id>/download")
@@ -249,7 +266,7 @@ def preview_material(subject_id: int, material_id: int):
 def download_material(subject_id: int, material_id: int):
     subject = get_subject_or_404(subject_id)
     require_subject_access(subject)
-    material = StudyMaterial.query.get_or_404(material_id)
+    material = _get_material_in_subject(subject_id, material_id)
     path = FileService.get_material_path(material)
     if not path or not os.path.exists(path):
         abort(404)
@@ -297,6 +314,40 @@ def download_attachment(attachment_id: int):
     folder = os.path.join(current_app.config["UPLOAD_FOLDER"], "chat")
     return send_from_directory(folder, att.filename, as_attachment=True,
                                download_name=att.original_filename)
+
+
+def _get_attachment_for_user(attachment_id: int) -> ChatAttachment:
+    att = ChatAttachment.query.get_or_404(attachment_id)
+    msg = ChatMessage.query.get_or_404(att.message_id)
+    require_subject_access(get_subject_or_404(msg.subject_id))
+    return att
+
+
+@subject_bp.route("/attachments/<int:attachment_id>/preview")
+@login_required
+def preview_attachment(attachment_id: int):
+    """Załącznik z czatu inline (podgląd), analogicznie do preview_material."""
+    att = _get_attachment_for_user(attachment_id)
+    path = FileService.get_attachment_path(att)
+    if not path or not os.path.exists(path):
+        abort(404)
+    folder = os.path.join(current_app.config["UPLOAD_FOLDER"], "chat")
+    mimetype = PREVIEWABLE_MIMETYPES.get(os.path.splitext(att.original_filename or "")[1].lower())
+    if not mimetype:
+        return send_from_directory(folder, att.filename, as_attachment=True,
+                                   download_name=att.original_filename)
+    return _inline_response(folder, att.filename, att.original_filename, mimetype)
+
+
+@subject_bp.route("/attachments/<int:attachment_id>/preview-doc")
+@login_required
+def preview_attachment_doc(attachment_id: int):
+    att = _get_attachment_for_user(attachment_id)
+    path = FileService.get_attachment_path(att)
+    if not path or not os.path.exists(path):
+        return preview_service.error_response("Nie znaleziono pliku.", 404)
+    return preview_service.document_response(
+        path, att.original_filename, _preview_cache_dir(), f"a_{att.filename}")
 
 
 # --- Podsumowania AI -------------------------------------------------------

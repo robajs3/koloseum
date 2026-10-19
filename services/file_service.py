@@ -75,6 +75,9 @@ class FileService:
             )
             if os.path.exists(path):
                 os.remove(path)
+            from services import preview_service
+            preview_service.remove_cached(
+                os.path.join(current_app.config["UPLOAD_FOLDER"], "preview_cache"), f"m_{material.filename}")
         db.session.delete(material)
         db.session.commit()
 
