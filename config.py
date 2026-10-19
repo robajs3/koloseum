@@ -41,15 +41,21 @@ class Config:
     # "X dni przed".
     REMINDER_CHECK_INTERVAL = int(os.getenv("REMINDER_CHECK_INTERVAL", "300"))
 
-    # --- Podsumowania AI materiałów PDF (services/ai_service.py) — lokalna Ollama ---
+    # --- Podsumowania AI materiałów PDF (services/ai_service.py) — lokalna Ollama, tylko CPU/RAM ---
     AI_SUMMARY_ENABLED = os.getenv("AI_SUMMARY_ENABLED", "true").lower() == "true"
     OLLAMA_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
-    AI_SUMMARY_MODEL = os.getenv("AI_SUMMARY_MODEL", "qwen2.5:7b")
-    # Ile znaków tekstu z PDF trafia do modelu (reszta jest ucinana).
-    AI_SUMMARY_MAX_CHARS = int(os.getenv("AI_SUMMARY_MAX_CHARS", "20000"))
-    # Okno kontekstu modelu w tokenach — musi pomieścić tekst + odpowiedź.
-    AI_SUMMARY_NUM_CTX = int(os.getenv("AI_SUMMARY_NUM_CTX", "8192"))
-    # Timeout (s) na odpowiedź; na CPU generowanie potrafi trwać kilka minut.
+    AI_SUMMARY_MODEL = os.getenv("AI_SUMMARY_MODEL", "gemma3:4b")
+    # Ile znaków tekstu z PDF trafia do modelu (reszta jest ucinana). Na CPU czas
+    # generowania rośnie niemal liniowo z długością wejścia — to główne pokrętło szybkości.
+    AI_SUMMARY_MAX_CHARS = int(os.getenv("AI_SUMMARY_MAX_CHARS", "10000"))
+    # Okno kontekstu w tokenach — musi pomieścić tekst + odpowiedź.
+    AI_SUMMARY_NUM_CTX = int(os.getenv("AI_SUMMARY_NUM_CTX", "4096"))
+    # Maks. długość odpowiedzi w tokenach (podsumowanie ma ~250 słów).
+    AI_SUMMARY_MAX_TOKENS = int(os.getenv("AI_SUMMARY_MAX_TOKENS", "700"))
+    # Liczba wątków CPU dla modelu; 0 = Ollama dobiera sama. Najlepiej ustawić
+    # liczbę FIZYCZNYCH rdzeni (nie wątków HT).
+    AI_SUMMARY_NUM_THREADS = int(os.getenv("AI_SUMMARY_NUM_THREADS", "0"))
+    # Timeout (s) na odpowiedź.
     AI_SUMMARY_TIMEOUT = int(os.getenv("AI_SUMMARY_TIMEOUT", "900"))
     # Ile podsumowań na usera na 24h (ochrona CPU serwera).
     AI_SUMMARY_DAILY_LIMIT = int(os.getenv("AI_SUMMARY_DAILY_LIMIT", "30"))

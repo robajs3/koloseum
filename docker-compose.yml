@@ -45,9 +45,11 @@ services:
       # Podsumowania AI materiałów PDF — lokalna Ollama (kontener "ollama" niżej)
       AI_SUMMARY_ENABLED: ${AI_SUMMARY_ENABLED:-true}
       OLLAMA_URL: ${OLLAMA_URL:-http://ollama:11434}
-      AI_SUMMARY_MODEL: ${AI_SUMMARY_MODEL:-qwen2.5:7b}
-      AI_SUMMARY_MAX_CHARS: ${AI_SUMMARY_MAX_CHARS:-20000}
-      AI_SUMMARY_NUM_CTX: ${AI_SUMMARY_NUM_CTX:-8192}
+      AI_SUMMARY_MODEL: ${AI_SUMMARY_MODEL:-gemma3:4b}
+      AI_SUMMARY_MAX_CHARS: ${AI_SUMMARY_MAX_CHARS:-10000}
+      AI_SUMMARY_NUM_CTX: ${AI_SUMMARY_NUM_CTX:-4096}
+      AI_SUMMARY_MAX_TOKENS: ${AI_SUMMARY_MAX_TOKENS:-700}
+      AI_SUMMARY_NUM_THREADS: ${AI_SUMMARY_NUM_THREADS:-0}
       AI_SUMMARY_TIMEOUT: ${AI_SUMMARY_TIMEOUT:-900}
       AI_SUMMARY_DAILY_LIMIT: ${AI_SUMMARY_DAILY_LIMIT:-30}
     ports:
@@ -68,6 +70,14 @@ services:
     image: ollama/ollama:latest
     container_name: koloseum-ollama
     restart: unless-stopped
+    environment:
+      # Tylko CPU: karta (GT710) nie jest używana — kontener nie dostaje GPU,
+      # a CUDA_VISIBLE_DEVICES=-1 dodatkowo blokuje próby jej użycia.
+      CUDA_VISIBLE_DEVICES: "-1"
+      OLLAMA_NUM_PARALLEL: "1"        # jedno zapytanie naraz = pełna moc CPU dla niego
+      OLLAMA_MAX_LOADED_MODELS: "1"   # nie trzymaj kilku modeli w RAM
+      OLLAMA_KEEP_ALIVE: "30m"
+      OLLAMA_FLASH_ATTENTION: "1"     # mniejsze zużycie RAM/CPU przy kontekście
     volumes:
       - koloseum_ollama:/root/.ollama
     healthcheck:
@@ -85,7 +95,7 @@ services:
         condition: service_healthy
     environment:
       OLLAMA_HOST: ollama:11434
-    entrypoint: ["/bin/sh", "-c", "ollama pull ${AI_SUMMARY_MODEL:-qwen2.5:7b}"]
+    entrypoint: ["/bin/sh", "-c", "ollama pull ${AI_SUMMARY_MODEL:-gemma3:4b}"]
 
 volumes:
   koloseum_pgdata:

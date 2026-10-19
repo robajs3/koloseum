@@ -84,11 +84,20 @@ def summarize_pdf(path: str, title: str) -> tuple[str, str]:
     if truncated:
         user_msg += " (To tylko początek dokumentu — zaznacz to na końcu podsumowania.)"
 
+    options = {
+        "num_ctx": cfg["AI_SUMMARY_NUM_CTX"],
+        "num_predict": cfg["AI_SUMMARY_MAX_TOKENS"],
+        "temperature": 0.2,
+        "num_gpu": 0,  # zawsze CPU + RAM, nic nie ląduje na karcie graficznej
+    }
+    if cfg["AI_SUMMARY_NUM_THREADS"] > 0:
+        options["num_thread"] = cfg["AI_SUMMARY_NUM_THREADS"]
+
     payload = {
         "model": model,
         "stream": False,
-        "keep_alive": "10m",
-        "options": {"num_ctx": cfg["AI_SUMMARY_NUM_CTX"], "temperature": 0.2},
+        "keep_alive": "30m",  # model zostaje w RAM — kolejne podsumowania bez ładowania
+        "options": options,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_msg},
