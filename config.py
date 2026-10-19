@@ -40,3 +40,12 @@ class Config:
     # zbliżające się terminy pod kątem powiadomień "godzinę przed" i
     # "X dni przed".
     REMINDER_CHECK_INTERVAL = int(os.getenv("REMINDER_CHECK_INTERVAL", "300"))
+
+    # --- Podsumowania AI materiałów PDF (services/ai_service.py) ---
+    # Bez klucza funkcja jest po prostu wyłączona (przyciski się nie pokazują).
+    ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+    AI_SUMMARY_MODEL = os.getenv("AI_SUMMARY_MODEL", "claude-haiku-5-5")
+    # Powyżej tego rozmiaru PDF nie jest wysyłany natywnie, tylko jako wyciągnięty tekst.
+    AI_SUMMARY_MAX_PDF_MB = int(os.getenv("AI_SUMMARY_MAX_PDF_MB", "20"))
+    # Ile podsumowań na usera na 24h (ochrona rachunku za API).
+    AI_SUMMARY_DAILY_LIMIT = int(os.getenv("AI_SUMMARY_DAILY_LIMIT", "30"))

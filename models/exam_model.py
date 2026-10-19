@@ -71,6 +71,10 @@ class StudyMaterial(db.Model):
 
     subject = db.relationship("Subject", back_populates="materials")
     uploader = db.relationship("User", foreign_keys=[uploaded_by])
+    summary = db.relationship(
+        "MaterialSummary", back_populates="material", uselist=False,
+        cascade="all, delete-orphan",
+    )
 
 
 class Notification(db.Model):

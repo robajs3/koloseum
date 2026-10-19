@@ -4,6 +4,7 @@ from models import Subject, Exam, ChatMessage, ChatAttachment, StudyMaterial, Ro
 from services.room_service import RoomService
 from services.exam_service import ExamService
 from services.file_service import FileService
+from services.summary_service import SummaryService, is_summarizable
 from utils.timezone import to_utc, utc_now
 from datetime import datetime
 import os
@@ -104,6 +105,7 @@ def subject_detail(subject_id: int):
         admin=admin,
         now=now,
         previewable_extensions=set(PREVIEWABLE_MIMETYPES.keys()),
+        ai_enabled=SummaryService.enabled(),
     )
 
 
@@ -184,6 +186,10 @@ def add_material(subject_id: int):
         flash(err, "danger")
     else:
         flash("Materiał dodany!", "success")
+        # PDF → od razu zlecamy podsumowanie AI (w tle; nie blokuje odpowiedzi)
+        if (material and is_summarizable(material) and SummaryService.enabled()
+                and not SummaryService.user_over_limit(current_user.id)):
+            SummaryService.start(material, current_user.id)
     return redirect(url_for("subjects.subject_detail", subject_id=subject_id) + "#materials")
 
 
@@ -272,3 +278,49 @@ def download_attachment(attachment_id: int):
     folder = os.path.join(current_app.config["UPLOAD_FOLDER"], "chat")
     return send_from_directory(folder, att.filename, as_attachment=True,
                                download_name=att.original_filename)
+
+
+# --- Podsumowania AI -------------------------------------------------------
+
+def _get_material_in_subject(subject_id: int, material_id: int) -> StudyMaterial:
+    material = StudyMaterial.query.get_or_404(material_id)
+    if material.subject_id != subject_id:
+        abort(404)
+    return material
+
+
+@subject_bp.route("/subjects/<int:subject_id>/materials/<int:material_id>/summary")
+@login_required
+def material_summary(subject_id: int, material_id: int):
+    """Status + treść podsumowania (odpytywane z JS, dopóki status == pending)."""
+    subject = get_subject_or_404(subject_id)
+    require_subject_access(subject)
+    material = _get_material_in_subject(subject_id, material_id)
+    return jsonify(SummaryService.to_dict(material.summary))
+
+
+@subject_bp.route("/subjects/<int:subject_id>/materials/<int:material_id>/summary", methods=["POST"])
+@login_required
+def generate_material_summary(subject_id: int, material_id: int):
+    """Ręczne wygenerowanie / ponowienie podsumowania."""
+    subject = get_subject_or_404(subject_id)
+    require_subject_access(subject)
+    material = _get_material_in_subject(subject_id, material_id)
+
+    if not SummaryService.enabled():
+        return jsonify({"status": "error", "error": "Podsumowania AI są wyłączone."}), 503
+    if not is_summarizable(material):
+        return jsonify({"status": "error", "error": "Podsumowanie działa tylko dla plików PDF."}), 400
+
+    # Nadpisać gotowe podsumowanie może tylko autor materiału lub admin pokoju;
+    # pozostali mogą wygenerować brakujące albo ponowić nieudane.
+    existing = material.summary
+    force = bool(existing and existing.status == "done"
+                 and (material.uploaded_by == current_user.id or is_room_admin(subject)))
+
+    if SummaryService.user_over_limit(current_user.id):
+        return jsonify({"status": "error",
+                        "error": "Dzienny limit podsumowań AI został wykorzystany."}), 429
+
+    row = SummaryService.start(material, current_user.id, force=force)
+    return jsonify(SummaryService.to_dict(row))

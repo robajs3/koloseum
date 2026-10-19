@@ -454,6 +454,14 @@
           </span>
           {% endif %}
 
+          {% if ai_enabled and is_pdf and not mat.is_filevault_link %}
+          <button type="button" class="btn btn-ghost btn-sm" id="sum-btn-{{ mat.id }}"
+                  onclick="toggleSummary({{ mat.id }})" title="Podsumowanie AI"
+                  style="{% if mat.summary and mat.summary.status == 'done' %}color:var(--primary){% endif %}">
+            <i class="fas fa-wand-magic-sparkles"></i>
+          </button>
+          {% endif %}
+
           {% if mat.is_filevault_link %}
           <a href="{{ mat.filevault_link }}" target="_blank" class="btn btn-ghost btn-sm" title="Otwórz w FileVault">
             <i class="fas fa-external-link-alt"></i>
@@ -475,6 +483,22 @@
           {% endif %}
         </div>
       </div>
+      {% if ai_enabled and is_pdf and not mat.is_filevault_link %}
+      <div id="sum-panel-{{ mat.id }}" class="ai-summary" style="display:none;padding:12px 16px;
+           background:var(--bg);border-bottom:1px solid var(--border)"
+           data-url="{{ url_for('subjects.material_summary', subject_id=subject.id, material_id=mat.id) }}"
+           data-can-regen="{{ '1' if (mat.uploaded_by == current_user.id or admin) else '0' }}"
+           data-auto="{{ '1' if (mat.summary and mat.summary.status == 'pending') else '0' }}">
+        <div style="font-size:.72rem;font-weight:600;color:var(--primary);margin-bottom:6px">
+          <i class="fas fa-wand-magic-sparkles"></i> Podsumowanie AI
+        </div>
+        <div class="ai-summary-body" style="font-size:.84rem;line-height:1.55"></div>
+        <div class="ai-summary-actions" style="margin-top:8px"></div>
+        <div style="font-size:.68rem;color:var(--text-light);margin-top:6px">
+          Wygenerowane automatycznie — mogą zawierać błędy. Sprawdź w oryginale.
+        </div>
+      </div>
+      {% endif %}
       {% endfor %}
     </div>
   </div>
@@ -568,6 +592,99 @@ else switchTab('exams');
 
 const chatBox = document.getElementById('chat-box');
 if (chatBox) chatBox.scrollTop = chatBox.scrollHeight;
+
+/* ===== PODSUMOWANIA AI ===== */
+const summaryTimers = {};
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// Minimalny, bezpieczny render: najpierw escape, potem tylko **pogrubienie** i listy "- ".
+function renderSummary(text) {
+  const lines = escHtml(text).split('\n');
+  let html = '', inList = false;
+  for (const raw of lines) {
+    const line = raw.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    if (/^\s*[-•]\s+/.test(raw)) {
+      if (!inList) { html += '<ul style="margin:4px 0 4px 18px;padding:0">'; inList = true; }
+      html += '<li>' + line.replace(/^\s*[-•]\s+/, '') + '</li>';
+    } else {
+      if (inList) { html += '</ul>'; inList = false; }
+      if (line.trim()) html += '<p style="margin:6px 0">' + line + '</p>';
+    }
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+
+function paintSummary(id, data) {
+  const panel = document.getElementById('sum-panel-' + id);
+  const body = panel.querySelector('.ai-summary-body');
+  const actions = panel.querySelector('.ai-summary-actions');
+  const canRegen = panel.dataset.canRegen === '1';
+  actions.innerHTML = '';
+  clearTimeout(summaryTimers[id]);
+
+  const mkBtn = (label, cls) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn btn-sm ' + cls; b.textContent = label;
+    b.onclick = () => startSummary(id);
+    actions.appendChild(b);
+  };
+
+  if (data.status === 'pending') {
+    body.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;vertical-align:middle;margin-right:6px"></span> Generuję podsumowanie…';
+    summaryTimers[id] = setTimeout(() => pollSummary(id), 3000);
+  } else if (data.status === 'done') {
+    body.innerHTML = renderSummary(data.summary || '');
+    document.getElementById('sum-btn-' + id).style.color = 'var(--primary)';
+    if (canRegen) mkBtn('Wygeneruj ponownie', 'btn-ghost');
+  } else if (data.status === 'error') {
+    body.textContent = data.error || 'Nie udało się wygenerować podsumowania.';
+    body.style.color = 'var(--danger)';
+    mkBtn('Spróbuj ponownie', 'btn-secondary');
+    return;
+  } else {
+    body.textContent = 'Brak podsumowania dla tego pliku.';
+    mkBtn('Wygeneruj podsumowanie', 'btn-primary');
+  }
+  body.style.color = '';
+}
+
+async function pollSummary(id) {
+  const panel = document.getElementById('sum-panel-' + id);
+  try {
+    const r = await fetch(panel.dataset.url, {headers: {'Accept': 'application/json'}});
+    paintSummary(id, await r.json());
+  } catch (e) {
+    summaryTimers[id] = setTimeout(() => pollSummary(id), 5000);
+  }
+}
+
+async function startSummary(id) {
+  const panel = document.getElementById('sum-panel-' + id);
+  paintSummary(id, {status: 'pending'});
+  try {
+    const r = await fetch(panel.dataset.url, {method: 'POST', headers: {'Accept': 'application/json'}});
+    paintSummary(id, await r.json());
+  } catch (e) {
+    paintSummary(id, {status: 'error', error: 'Błąd połączenia z serwerem.'});
+  }
+}
+
+function toggleSummary(id) {
+  const panel = document.getElementById('sum-panel-' + id);
+  const show = panel.style.display === 'none';
+  panel.style.display = show ? '' : 'none';
+  if (show) pollSummary(id);
+  else clearTimeout(summaryTimers[id]);
+}
+
+// Jeśli podsumowanie właśnie się generuje (np. po uploadzie) — otwórz panel i pokaż postęp.
+document.querySelectorAll('.ai-summary[data-auto="1"]').forEach(p => {
+  toggleSummary(parseInt(p.id.replace('sum-panel-', ''), 10));
+});
 
 /* ===== PODGLĄD FOLDERU FILEVAULT (iframe inline) ===== */
 let folderPreviewTimer = null;

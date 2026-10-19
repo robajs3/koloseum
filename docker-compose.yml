@@ -42,6 +42,10 @@ services:
       # w .env LoginHub. hub-web to nazwa kontenera LoginHub w sso_net.
       SSO_SECRET: ${SSO_SECRET:-}
       HUB_INTERNAL_URL: ${HUB_INTERNAL_URL:-http://hub-web:8000}
+      # Podsumowania AI materiałów PDF (puste = funkcja wyłączona)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AI_SUMMARY_MODEL: ${AI_SUMMARY_MODEL:-claude-haiku-5-5}
+      AI_SUMMARY_DAILY_LIMIT: ${AI_SUMMARY_DAILY_LIMIT:-30}
     ports:
       # Zmapowane na localhost — Tailscale Serve wskazuje na ten port,
       # tak jak wcześniej wskazywał na usługę systemd na 5001.
